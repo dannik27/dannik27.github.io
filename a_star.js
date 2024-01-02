@@ -16,9 +16,9 @@ function aStar(grid, a, b, near) {
             return buildResult(current)
         }
         for (next of getNeighbors(grid, current)) {
-            let newCost = grid[current.y][current.x] + 1
-            if (grid[next.y][next.x] == 0 || newCost < grid[next.y][next.x]) {
-                grid[next.y][next.x] = newCost
+            let newCost = grid[current.x][current.y] + 1
+            if (grid[next.x][next.y] == 0 || newCost < grid[next.x][next.y]) {
+                grid[next.x][next.y] = newCost
                 let priority = newCost + heuristic(next, b)
                 frontier.push(next, priority)
                 next.cameFrom = current
@@ -89,8 +89,8 @@ function getNeighbors(grid, a) {
         {x: a.x + 1, y: a.y}
     ]
     return candidates
-        .filter( c => c.x >= 0 && c.y >= 0 && c.y < grid.length && c.x < grid[0].length)
-        .filter( c => grid[c.y][c.x] >= 0)
+        .filter( c => c.x >= 0 && c.y >= 0 && c.x < grid.length && c.y < grid[0].length)
+        .filter( c => grid[c.x][c.y] >= 0)
 }
 
 

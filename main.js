@@ -69,8 +69,8 @@ droppedItems = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH /
 
 droppedItems[8][2] = [
     {
-        type: 'wood',
-        qty: 5
+        type: 'sprout',
+        qty: 1
     }
 ]
 
@@ -86,6 +86,7 @@ friends = [
         color: 'blue',
         img: frank,
         speed: 1,
+        inventory: [],
         skill: {
             lumberjack: 3
         },
@@ -102,6 +103,7 @@ friends = [
         color: 'purple',
         img: garry,
         speed: 1,
+        inventory: [],
         tasks: [
         ],
         plan: [],
@@ -145,7 +147,6 @@ function onClick(x, y) {
 
     if (objectToBuild) {
         if (objectToBuild.name == 'tree') {
-            // createTree(x, y) 
             globalTasksQueue.push({
                 type: "grow",
                 args: {
@@ -165,6 +166,10 @@ function onClick(x, y) {
             } else {
                 selectedObject = target
                 showButtons(target)
+            }
+
+            if(friends.includes(target)) {
+                console.log(target.plan)
             }
             
         }
@@ -287,6 +292,23 @@ function isFreeTile(x, y) {
     return true
 }
 
+function findItems(type, qty) {
+    for(let x = 0; x < droppedItems.length; x++) {
+        for(let y = 0; y < droppedItems[x].length; y++) {
+            let current = droppedItems[x][y]
+            if(current && current.length > 0) {
+                for (let i = 0; i < current.length; i++) {
+
+                    if(current[i].type == type) {
+                        return {x, y}
+                    }
+
+                }
+            }
+        }
+    }
+}
+
 
 function ticker() {
     calculate()
@@ -371,6 +393,37 @@ function calculate() {
                     createTree(targetPoint.x, targetPoint.y)
                 }
             }
+            if ( task.type == 'take') {
+                
+                let items = droppedItems[friend.x][friend.y]
+                let found = false
+                if(items) {
+                    for(let i = 0; i < items.length; i++) {
+                        if (items[i].type == task.args.type) {
+                            if (items[i].qty > task.args.qty) {
+                                items[i].qty = items[i].qty - task.args.qty
+                                friend.inventory.push({type: task.args.type, qty: task.args.qty})
+                            } else if (items[i].qty == task.args.qty) {
+                                items.splice(i, 1)
+                                friend.inventory.push({type: task.args.type, qty: task.args.qty})
+                            } else {
+                                console.log("Not enought items")
+                                friend.plan = []
+                            }
+                            found = true
+                        }
+                    }
+                }
+
+                if(found) {
+                    friend.plan.shift()
+                    console.log(friend.name + " completed task part " + task.type)
+                } else {
+                    console.log("Item not found")
+                    friend.plan = []
+                }
+
+            }
         } else {
 
             if (friend.tasks && friend.tasks.length > 0) {
@@ -419,15 +472,37 @@ function calculate() {
                     if(! isFreeTile(task.args.x, task.args.y)) {
                         friend.tasks.shift()
                         console.log(friend.name + " completed " + task.type)
+                        continue
+                    }
+
+                    let sproutLocation = findItems('sprout', 1)
+                    if (sproutLocation == null) {
+                        console.log("There are no sprout. Grow task is aborted")
+                        friend.tasks.shift()
+                        continue
                     }
                     
                     let from = {x: friend.x, y: friend.y}
-                    let to = {x: task.args.x, y: task.args.y}
-                    let grid = new Array(SCENE_HEIGHT / TILE_SIZE); for (let i=0; i<SCENE_HEIGHT / TILE_SIZE; ++i) grid[i] = new Array(SCENE_WIDTH / TILE_SIZE).fill(0);
+                    let grid = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) grid[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(0);
                     for (staticObject of staticObjects) {
-                        grid[staticObject.y][staticObject.x] = -1
+                        grid[staticObject.x][staticObject.y] = -1
                     }
-                    let plan = aStar(grid, from, to, true).map(point => ({type: "move", args: {x: point.x, y: point.y}}))
+                    let plan = aStar(grid, from, sproutLocation, false).map(point => ({type: "move", args: {x: point.x, y: point.y}}))
+
+                    
+
+                    plan.push({
+                        type: "take",
+                        args: {
+                            type: "sprout",
+                            qty: 1
+                        }
+                    })
+
+                    let to = {x: task.args.x, y: task.args.y}
+                    let plan2 = aStar(grid, sproutLocation, to, true).map(point => ({type: "move", args: {x: point.x, y: point.y}}))
+                    plan.push(...plan2)
+
                     plan.push({
                         type: "grow",
                         args: {
