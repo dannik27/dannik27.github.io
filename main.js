@@ -35,8 +35,6 @@ canvas.addEventListener('mousedown', function(e) {
     
 })
 
-const tree1 = new Image(); 
-tree1.src = "img/tree1.png"
 
 const frank = new Image(); 
 frank.src = "img/people/frank.png"
@@ -46,39 +44,26 @@ garry.src = "img/people/garry.png"
 
 staticObjects = [
     {
-        name: "Дерево",
-        img: tree1,
-        width: 1,
-        height: 1,
-        x: 3,
-        y: 3,
-        color: 'green',
-        health: 100,
-        kind: ['tree'],
-        inventory: [
-            {
-                type: 'wood',
-                qty: 10
-            }
-        ]
-    },
-    {
         width: 1,
         height: 1,
         x: 3,
         y: 4,
-        color: 'red'
+        color: 'blue'
     },
-    { width: 1,height: 1, x: 5, y: 2, color: 'red' },
-    { width: 1,height: 1, x: 5, y: 3, color: 'red' },
-    { width: 1,height: 1, x: 5, y: 4, color: 'red' },
-    { width: 1,height: 1, x: 5, y: 5, color: 'red' },
-    { width: 1,height: 1, x: 5, y: 6, color: 'red' },
-    { width: 1,height: 1, x: 5, y: 7, color: 'red' },
-    { width: 1,height: 1, x: 5, y: 8, color: 'red' },
-    { width: 1,height: 1, x: 5, y: 9, color: 'red' },
-    { width: 1,height: 1, x: 5, y: 10, color: 'red' },
+    { width: 1,height: 1, x: 5, y: 2, color: 'blue' },
+    { width: 1,height: 1, x: 5, y: 3, color: 'blue' },
+    { width: 1,height: 1, x: 5, y: 4, color: 'blue' },
+    { width: 1,height: 1, x: 5, y: 5, color: 'blue' },
+    { width: 1,height: 1, x: 5, y: 6, color: 'blue' },
+    { width: 1,height: 1, x: 5, y: 7, color: 'blue' },
+    { width: 1,height: 1, x: 5, y: 8, color: 'blue' },
+    { width: 1,height: 1, x: 5, y: 9, color: 'blue' },
+    { width: 1,height: 1, x: 5, y: 10, color: 'blue' },
 ]
+
+let plants = []
+
+createTree(3, 3)
 
 droppedItems = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) droppedItems[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(null);
 
@@ -102,24 +87,9 @@ friends = [
         img: frank,
         speed: 1,
         skill: {
-            lumberjack: 5
+            lumberjack: 3
         },
-        tasks: [
-            // {
-            //     type: "move",
-            //     args: {
-            //         x: 6,
-            //         y: 3
-            //     }
-            // },
-            // {
-            //     type: "move",
-            //     args: {
-            //         x: 2,
-            //         y: 8
-            //     }
-            // }
-        ],
+        tasks: [],
         plan: []
     },
     {
@@ -153,15 +123,20 @@ let buttons = [
 let buildButtons = [
     {
         name: "tree",
-        text: "bom"
+        text: "bom",
+        img: tree1
     }
 ]
+
+
 
 let objectToBuild = null
 
 let selectedObject = null
 
-let objectToRender = [...staticObjects, ...friends]
+function objectsToRender() {
+    return [...staticObjects, ...friends]
+} 
 
 let globalTasksQueue = priorityQueue()
 
@@ -170,12 +145,20 @@ function onClick(x, y) {
 
     if (objectToBuild) {
         if (objectToBuild.name == 'tree') {
-            createTree(x, y) 
+            // createTree(x, y) 
+            globalTasksQueue.push({
+                type: "grow",
+                args: {
+                    name: "tree",
+                    x,
+                    y
+                }
+            }, 3)
         }
         objectToBuild = null
     }
 
-    for(target of objectToRender) {
+    for(target of objectsToRender()) {
         if (target.x == x && target.y == y) {
             if (selectedObject == target) {
                 selectedObject = null
@@ -238,7 +221,7 @@ function hitObject(target, damage) {
         }
 
         staticObjects = staticObjects.filter(item => item !== target)
-        objectToRender = objectToRender.filter(item => item !== target)
+        plants = plants.filter(item => item != target)
 
         if (target.inventory) {
             for (item of target.inventory) {
@@ -261,22 +244,47 @@ function dropItem(item, x, y) {
 function createTree(x, y) {
     let newObject = {
         name: "Дерево",
-        img: tree1,
+        img: tree0,
         width: 1,
         height: 1,
         x: x,
         y: y,
         health: 100,
         kind: ['tree'],
+        feature: {
+            plant: {
+                type: "tree",
+                level: 0
+            }
+        },
         inventory: [
             {
                 type: 'wood',
                 qty: 10
+            },
+            {
+                type: 'sprout',
+                qty: getRandomInt(0, 1)
             }
         ]
     }
     staticObjects.push(newObject)
-    objectToRender.push(newObject)
+    plants.push(newObject)
+}
+
+function getRandomInt(min, max) {
+    min = Math.floor(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1) + min);
+  }
+
+function isFreeTile(x, y) {
+    for (obj of staticObjects) {
+        if (obj.x == x && obj.y == y) {
+            return false
+        }
+    }
+    return true
 }
 
 
@@ -287,6 +295,28 @@ function ticker() {
 }
 
 function calculate() {
+
+    for (plant of plants) {
+        let plantFeature = plant.feature.plant
+        let plantTemplate = collections.plants[plantFeature.type]
+
+        let growRate = plantTemplate.growRate   
+        let newGrowLevel = Math.min(plantFeature.level + growRate, 100)
+        let currentPhase = null
+        for (phase of plantTemplate.phases) {
+            if (newGrowLevel > phase.level){
+                currentPhase = phase
+            }
+        }
+
+        if (currentPhase.height) {
+            plant.height = currentPhase.height
+        }
+
+        plant.img = currentPhase.img
+        plant.inventory = currentPhase.inventory
+        plantFeature.level = newGrowLevel
+    }
 
     for (friend of friends) {
 
@@ -325,6 +355,20 @@ function calculate() {
                 } else {
                     hitObject(target, friend.skill.lumberjack)
                 
+                }
+            }
+            if ( task.type == 'grow') {
+                let targetPoint = {
+                    x: task.args.x,
+                    y: task.args.y
+                }
+                if (! isNear(friend, targetPoint)) {
+                    friend.plan = []
+                } else if (! isFreeTile(targetPoint.x, targetPoint.y)) {
+                    friend.plan.shift()
+                    console.log(friend.name + " completed task part " + task.type)
+                } else {
+                    createTree(targetPoint.x, targetPoint.y)
                 }
             }
         } else {
@@ -370,6 +414,30 @@ function calculate() {
                     })
                     friend.plan = plan
                 }
+                if ( task.type == 'grow') {
+
+                    if(! isFreeTile(task.args.x, task.args.y)) {
+                        friend.tasks.shift()
+                        console.log(friend.name + " completed " + task.type)
+                    }
+                    
+                    let from = {x: friend.x, y: friend.y}
+                    let to = {x: task.args.x, y: task.args.y}
+                    let grid = new Array(SCENE_HEIGHT / TILE_SIZE); for (let i=0; i<SCENE_HEIGHT / TILE_SIZE; ++i) grid[i] = new Array(SCENE_WIDTH / TILE_SIZE).fill(0);
+                    for (staticObject of staticObjects) {
+                        grid[staticObject.y][staticObject.x] = -1
+                    }
+                    let plan = aStar(grid, from, to, true).map(point => ({type: "move", args: {x: point.x, y: point.y}}))
+                    plan.push({
+                        type: "grow",
+                        args: {
+                            name: task.args.name,
+                            x: task.args.x,
+                            y: task.args.y
+                        }
+                    })
+                    friend.plan = plan
+                }
             } else {
 
                 let nextTask = globalTasksQueue.pop()
@@ -395,21 +463,7 @@ function render() {
     ctx.lineWidth = 1
     ctx.strokeRect(0, 0, SCENE_WIDTH, SCENE_HEIGHT);
 
-    for (obj of objectToRender) {
-
-        if(obj.img) {
-            ctx.drawImage(obj.img, obj.x * TILE_SIZE, obj.y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-        } else {
-            ctx.fillStyle = obj.color;
-            ctx.fillRect(obj.x * TILE_SIZE, obj.y * TILE_SIZE, obj.width * TILE_SIZE, obj.height * TILE_SIZE);
-        }
-        
-        if (obj == selectedObject) {
-            ctx.strokeStyle = 'green';
-            ctx.lineWidth = 6
-            ctx.strokeRect(obj.x * TILE_SIZE, obj.y * TILE_SIZE, obj.width * TILE_SIZE, obj.height * TILE_SIZE);
-        }
-    }
+    
 
     for(let x = 0; x < droppedItems.length; x++) {
         for(let y = 0; y < droppedItems[x].length; y++) {
@@ -421,7 +475,7 @@ function render() {
                     let itemTemplate = collections.items[item.type]
 
                     if(itemTemplate.img) {
-                        ctx.drawImage(itemTemplate.img, x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE / 2, TILE_SIZE / 2)
+                        ctx.drawImage(itemTemplate.img, x * TILE_SIZE + i * (TILE_SIZE / 2), y * TILE_SIZE, TILE_SIZE / 2, TILE_SIZE / 2)
                     } else {
                         ctx.fillStyle = itemTemplate.color;
                         ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE / 2, TILE_SIZE / 2);
@@ -432,6 +486,25 @@ function render() {
         }
     }
 
+    for (obj of objectsToRender()) {
+
+        if (obj == selectedObject) {
+            ctx.strokeStyle = 'green';
+            ctx.lineWidth = 2
+            ctx.setLineDash([6, 2])
+            ctx.strokeRect(obj.x * TILE_SIZE, obj.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        }
+
+        if(obj.img) {
+            ctx.drawImage(obj.img, obj.x * TILE_SIZE, obj.y * TILE_SIZE - ((obj.height - 1) * TILE_SIZE), TILE_SIZE, obj.height * TILE_SIZE)
+        } else {
+            ctx.fillStyle = obj.color;
+            ctx.fillRect(obj.x * TILE_SIZE, obj.y * TILE_SIZE, obj.width * TILE_SIZE, obj.height * TILE_SIZE);
+        }
+        
+        
+    }
+
     if (selectedObject) {
 
         ctx.font="20px Georgia";
@@ -440,8 +513,12 @@ function render() {
         ctx.textBaseline = "middle";
         ctx.fillText(selectedObject.name + "   " + selectedObject.health, SELECTED_INFO_AREA_X + 10, SELECTED_INFO_AREA_Y + 20);
 
+        if (selectedObject.feature && selectedObject.feature.plant) {
+            ctx.fillText("Зрелость: " + selectedObject.feature.plant.level.toFixed(2) + "%", SELECTED_INFO_AREA_X + 10, SELECTED_INFO_AREA_Y + 40);
+        }
+
         for (button of buttons) {
-            if (selectedObject.kind && selectedObject.kind.includes(button.kind)) {
+            if (button.index != null) {
                 let buttonX = BUTTONS_AREA_X + button.index * BUTTON_SIZE
                 let buttonY = BUTTONS_AREA_Y
 
@@ -474,7 +551,20 @@ function render() {
         ctx.strokeStyle = 'black';
         ctx.lineWidth = 2
         ctx.strokeRect(buttonX, buttonY, BUTTON_SIZE, BUTTON_SIZE, 10);
-        ctx.fillText(button.text, buttonX+(BUTTON_SIZE/2),buttonY+(BUTTON_SIZE/2));
+
+        if (button == objectToBuild) {
+            ctx.strokeStyle = 'green';
+            ctx.lineWidth = 6
+            ctx.strokeRect(buttonX, buttonY, BUTTON_SIZE,  BUTTON_SIZE);
+        }
+        
+
+        if(button.img) {
+            ctx.drawImage(button.img, buttonX, buttonY, BUTTON_SIZE, BUTTON_SIZE)
+        } else {
+            ctx.fillText(button.text, buttonX+(BUTTON_SIZE/2),buttonY+(BUTTON_SIZE/2));
+        }
+
 
     }
 
