@@ -9,9 +9,13 @@ let SIDE_MENU_WIDTH = 200
 let SELECTED_INFO_AREA_X = SCENE_WIDTH
 let SELECTED_INFO_AREA_Y = 0
 
+
 let BUTTON_SIZE = 40
 let BUTTONS_AREA_X = SCENE_WIDTH
 let BUTTONS_AREA_Y = SCENE_HEIGHT - 2 * BUTTON_SIZE
+
+let BUILD_BUTTONS_AREA_X = 0
+let BUILD_BUTTONS_AREA_Y = SCENE_HEIGHT
 
 const canvas = document.querySelector("#scene");
 const ctx = canvas.getContext("2d");
@@ -21,16 +25,24 @@ canvas.addEventListener('mousedown', function(e) {
     const rect = canvas.getBoundingClientRect()
     const x = e.clientX - rect.x
     const y = e.clientY - rect.y
-    if (x < SCENE_WIDTH) {
+    if (x < SCENE_WIDTH && y < SCENE_HEIGHT) {
         onClick(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE))
-    } else if (y > BUTTONS_AREA_Y) {
+    } else if (x > BUTTONS_AREA_X && y > BUTTONS_AREA_Y) {
         onButtonClick(Math.floor((x - SCENE_WIDTH) / BUTTON_SIZE))
+    } else {
+        onBuildButtonClick(Math.floor(x / BUTTON_SIZE))
     }
     
 })
 
 const tree1 = new Image(); 
 tree1.src = "img/tree1.png"
+
+const frank = new Image(); 
+frank.src = "img/people/frank.png"
+
+const garry = new Image(); 
+garry.src = "img/people/garry.png"
 
 staticObjects = [
     {
@@ -42,7 +54,13 @@ staticObjects = [
         y: 3,
         color: 'green',
         health: 100,
-        kind: ['tree']
+        kind: ['tree'],
+        inventory: [
+            {
+                type: 'wood',
+                qty: 10
+            }
+        ]
     },
     {
         width: 1,
@@ -62,14 +80,26 @@ staticObjects = [
     { width: 1,height: 1, x: 5, y: 10, color: 'red' },
 ]
 
+droppedItems = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) droppedItems[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(null);
+
+droppedItems[8][2] = [
+    {
+        type: 'wood',
+        qty: 5
+    }
+]
+
+
 friends = [
     {
         name: "Frank",
+        health: 100,
         width: 1,
         height: 1,
         x: 3,
         y: 7,
         color: 'blue',
+        img: frank,
         speed: 1,
         skill: {
             lumberjack: 5
@@ -94,11 +124,13 @@ friends = [
     },
     {
         name: "Garry",
+        health: 100,
         width: 1,
         height: 1,
         x: 12,
         y: 8,
         color: 'purple',
+        img: garry,
         speed: 1,
         tasks: [
         ],
@@ -118,6 +150,15 @@ let buttons = [
     }
 ]
 
+let buildButtons = [
+    {
+        name: "tree",
+        text: "bom"
+    }
+]
+
+let objectToBuild = null
+
 let selectedObject = null
 
 let objectToRender = [...staticObjects, ...friends]
@@ -126,6 +167,13 @@ let globalTasksQueue = priorityQueue()
 
 function onClick(x, y) {
     console.log(" On click " + x + " " + y)
+
+    if (objectToBuild) {
+        if (objectToBuild.name == 'tree') {
+            createTree(x, y) 
+        }
+        objectToBuild = null
+    }
 
     for(target of objectToRender) {
         if (target.x == x && target.y == y) {
@@ -160,6 +208,13 @@ function onButtonClick(index) {
     }
 }
 
+function onBuildButtonClick(index) {
+    let buildButton = buildButtons[index]
+    selectedObject = null
+    objectToBuild = buildButton
+    console.log("Button clicked " + buildButton.text)
+}
+
 function showButtons(target) {
     let buttonIndex = 0
     for (button of buttons) {
@@ -185,11 +240,44 @@ function hitObject(target, damage) {
         staticObjects = staticObjects.filter(item => item !== target)
         objectToRender = objectToRender.filter(item => item !== target)
 
-
+        if (target.inventory) {
+            for (item of target.inventory) {
+                console.log(target.x + " " + target.y)
+                dropItem(item, target.x, target.y)
+            }
+        }
 
     }
 }
 
+function dropItem(item, x, y) {
+    if (droppedItems[x][y]) {
+        droppedItems[x][y].push(item)
+    } else {
+        droppedItems[x][y] = [item]
+    }
+}
+
+function createTree(x, y) {
+    let newObject = {
+        name: "Дерево",
+        img: tree1,
+        width: 1,
+        height: 1,
+        x: x,
+        y: y,
+        health: 100,
+        kind: ['tree'],
+        inventory: [
+            {
+                type: 'wood',
+                qty: 10
+            }
+        ]
+    }
+    staticObjects.push(newObject)
+    objectToRender.push(newObject)
+}
 
 
 function ticker() {
@@ -323,6 +411,27 @@ function render() {
         }
     }
 
+    for(let x = 0; x < droppedItems.length; x++) {
+        for(let y = 0; y < droppedItems[x].length; y++) {
+            let current = droppedItems[x][y]
+            if(current && current.length > 0) {
+                for (let i = 0; i < current.length; i++) {
+                    let item = current[i]
+
+                    let itemTemplate = collections.items[item.type]
+
+                    if(itemTemplate.img) {
+                        ctx.drawImage(itemTemplate.img, x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE / 2, TILE_SIZE / 2)
+                    } else {
+                        ctx.fillStyle = itemTemplate.color;
+                        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE / 2, TILE_SIZE / 2);
+                    }
+
+                }
+            }
+        }
+    }
+
     if (selectedObject) {
 
         ctx.font="20px Georgia";
@@ -348,6 +457,25 @@ function render() {
                 ctx.fillText(button.text, buttonX+(BUTTON_SIZE/2),buttonY+(BUTTON_SIZE/2));
             }
         }
+    }
+
+    for (let i = 0; i < buildButtons.length; i++) {
+        let button = buildButtons[i]
+
+        let buttonX = BUILD_BUTTONS_AREA_X + i * BUTTON_SIZE
+        let buttonY = BUILD_BUTTONS_AREA_Y
+
+        ctx.fillStyle = "#abc";
+        ctx.fillRect(buttonX, buttonY, BUTTON_SIZE, BUTTON_SIZE, 10);
+        ctx.font="14px Georgia";
+        ctx.textAlign="center"; 
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#000000";
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2
+        ctx.strokeRect(buttonX, buttonY, BUTTON_SIZE, BUTTON_SIZE, 10);
+        ctx.fillText(button.text, buttonX+(BUTTON_SIZE/2),buttonY+(BUTTON_SIZE/2));
+
     }
 
 }
