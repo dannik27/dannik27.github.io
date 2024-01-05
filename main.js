@@ -67,12 +67,12 @@ createTree(3, 3)
 
 droppedItems = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) droppedItems[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(null);
 
-droppedItems[8][2] = [
-    {
-        type: 'sprout',
-        qty: 1
-    }
-]
+droppedItems[8][2] = [{type: 'sprout',qty: 1}]
+droppedItems[1][1] = [{type: 'wood',qty: 6}]
+droppedItems[2][1] = [{type: 'wood',qty: 5}]
+droppedItems[3][1] = [{type: 'wood',qty: 6}]
+droppedItems[4][1] = [{type: 'wood',qty: 7}]
+droppedItems[1][2] = [{type: 'berry',qty: 1}]
 
 
 friends = [
@@ -86,7 +86,9 @@ friends = [
         color: 'blue',
         img: frank,
         speed: 1,
-        inventory: [],
+        inventory: [
+            {type: 'wood', qty: 4}
+        ],
         skill: {
             lumberjack: 3
         },
@@ -117,6 +119,7 @@ let buttons = [
     {
         name: "cut",
         kind: "tree",
+        features: ['plant'],
         text: "CUT",
         priority: 4
     }
@@ -127,6 +130,15 @@ let buildButtons = [
         name: "tree",
         text: "bom",
         img: tree1
+    },
+    {
+        name: "bed",
+        text: "BED",
+        img: bed
+    },
+    {
+        name: "berry_bush",
+        img: bush3
     }
 ]
 
@@ -151,6 +163,16 @@ function onClick(x, y) {
                 type: "grow",
                 args: {
                     name: "tree",
+                    x,
+                    y
+                }
+            }, 3)
+        }
+        if (['bed', 'berry_bush'].includes(objectToBuild.name)) {
+            globalTasksQueue.push({
+                type: "construct",
+                args: {
+                    name: objectToBuild.name,
                     x,
                     y
                 }
@@ -206,7 +228,15 @@ function onBuildButtonClick(index) {
 function showButtons(target) {
     let buttonIndex = 0
     for (button of buttons) {
-        if (target.kind && target.kind.includes(button.kind)) {
+
+        let show = false
+        for(featureName of Object.keys(target.feature)) {
+            if (button.features.includes(featureName)) {
+                show = true
+            }
+        }
+
+        if (show) {
             button.index = buttonIndex
             buttonIndex += 1
         } else {
@@ -277,6 +307,20 @@ function createTree(x, y) {
     plants.push(newObject)
 }
 
+function createObject(x, y, template) {
+    let newObject = {
+        name: template.name,
+        img: template.img,
+        width: 1,
+        height: 1,
+        x: x,
+        y: y,
+        health: 100,
+        feature: template.feature
+    }
+    staticObjects.push(newObject)
+}
+
 function getRandomInt(min, max) {
     min = Math.floor(min);
     max = Math.floor(max);
@@ -292,21 +336,85 @@ function isFreeTile(x, y) {
     return true
 }
 
+function isTileHasObject(x, y, name) {
+    for (obj of staticObjects) {
+        if (obj.x == x && obj.y == y && obj.name == name) {
+            return true
+        }
+    }
+    return false
+}
+
 function findItems(type, qty) {
-    for(let x = 0; x < droppedItems.length; x++) {
+    let result = []
+    let qtyLeft = qty
+    mainloop: for(let x = 0; x < droppedItems.length; x++) {
         for(let y = 0; y < droppedItems[x].length; y++) {
             let current = droppedItems[x][y]
             if(current && current.length > 0) {
                 for (let i = 0; i < current.length; i++) {
 
                     if(current[i].type == type) {
-                        return {x, y}
-                    }
 
+                        let qtyToTake = qtyLeft < current[i].qty ? qtyLeft : current[i].qty
+
+                        result.push({x, y, qty: qtyToTake})
+                        qtyLeft = qtyLeft - qtyToTake
+                        if (qtyLeft <= 0) {
+                            break mainloop
+                        }
+                    }
                 }
             }
         }
     }
+
+    if (qtyLeft > 0) {
+        console.log("Unable to find " + qtyLeft + " of " + type)
+    }
+
+    return result;
+}
+
+function hasInInventory(target, items) {
+    if (!target.inventory) return false
+
+    for(item of items) {
+        let found = false
+        for(ownItem of target.inventory) {
+            if (ownItem.type == item.type && ownItem.qty >= item.qty) {
+                found = true
+            }
+        }
+        if(!found) return false
+    }
+
+    return true
+}
+
+function removeFromInventory(target, items) {
+    for(item of items) {
+        for(let i = 0; i < target.inventory.length; i++) {
+            let ownItem = target.inventory[i]
+            if (ownItem.type == item.type) { 
+                if (ownItem.qty > item.qty) {
+                    ownItem.qty = ownItem.qty - item.qty
+                } else {
+                    target.inventory.splice(i, 1)
+                }
+            }
+        }
+    }
+}
+
+function putToInventory(friend, item) {
+    for (ownItem of friend.inventory) {
+        if (ownItem.type == item.type) {
+            ownItem.qty = ownItem.qty + item.qty
+            return
+        }
+    }
+    friend.inventory.push(item)
 }
 
 
@@ -318,15 +426,15 @@ function ticker() {
 
 function calculate() {
 
-    for (plant of plants) {
+    staticObjects.filter((obj) => obj && obj.feature && obj.feature['plant']).forEach((plant) => {
         let plantFeature = plant.feature.plant
-        let plantTemplate = collections.plants[plantFeature.type]
+        let plantTemplate = collections.objects[plantFeature.type]
 
         let growRate = plantTemplate.growRate   
         let newGrowLevel = Math.min(plantFeature.level + growRate, 100)
         let currentPhase = null
         for (phase of plantTemplate.phases) {
-            if (newGrowLevel > phase.level){
+            if (newGrowLevel >= phase.level){
                 currentPhase = phase
             }
         }
@@ -338,7 +446,7 @@ function calculate() {
         plant.img = currentPhase.img
         plant.inventory = currentPhase.inventory
         plantFeature.level = newGrowLevel
-    }
+    })
 
     for (friend of friends) {
 
@@ -393,6 +501,23 @@ function calculate() {
                     createTree(targetPoint.x, targetPoint.y)
                 }
             }
+            if ( task.type == 'construct') {
+                let targetPoint = {
+                    x: task.args.x,
+                    y: task.args.y
+                }
+                if (! isNear(friend, targetPoint)) {
+                } else if (!hasInInventory(friend, task.args.template.parts)) {
+                    console.log("There is no enought parts in inventory")
+                } else if (isTileHasObject(targetPoint.x, targetPoint.y, task.args.name)) {
+                    console.log(friend.name + " completed task part " + task.type)
+                } else {
+                    createObject(targetPoint.x, targetPoint.y, task.args.template)
+                    removeFromInventory(friend, task.args.template.parts)
+                    
+                }
+                friend.plan = []
+            }
             if ( task.type == 'take') {
                 
                 let items = droppedItems[friend.x][friend.y]
@@ -402,10 +527,10 @@ function calculate() {
                         if (items[i].type == task.args.type) {
                             if (items[i].qty > task.args.qty) {
                                 items[i].qty = items[i].qty - task.args.qty
-                                friend.inventory.push({type: task.args.type, qty: task.args.qty})
+                                putToInventory(friend, {type: task.args.type, qty: task.args.qty})
                             } else if (items[i].qty == task.args.qty) {
                                 items.splice(i, 1)
-                                friend.inventory.push({type: task.args.type, qty: task.args.qty})
+                                putToInventory(friend, {type: task.args.type, qty: task.args.qty})
                             } else {
                                 console.log("Not enought items")
                                 friend.plan = []
@@ -475,7 +600,7 @@ function calculate() {
                         continue
                     }
 
-                    let sproutLocation = findItems('sprout', 1)
+                    let sproutLocation = findItems('sprout', 1)[0]
                     if (sproutLocation == null) {
                         console.log("There are no sprout. Grow task is aborted")
                         friend.tasks.shift()
@@ -509,6 +634,80 @@ function calculate() {
                             name: task.args.name,
                             x: task.args.x,
                             y: task.args.y
+                        }
+                    })
+                    friend.plan = plan
+                }
+                if ( task.type == 'construct') {
+
+                    if(isTileHasObject(task.args.x, task.args.y, task.args.name)) {
+                        friend.tasks.shift()
+                        console.log(friend.name + " completed " + task.type)
+                        continue
+                    }
+
+                    let template = collections.objects[task.args.name]
+
+                    let plan = []
+                    let lastPoint = {x: friend.x, y: friend.y}
+
+                    for(part of template.parts) {
+                        let qtyToFind = part.qty
+                        for (ownItem of friend.inventory) {
+                            if (ownItem.type == part.type) {
+                                if (ownItem.qty < part.qty) {
+                                    qtyToFind -= ownItem.qty
+                                } else {
+                                    qtyToFind = 0
+                                }
+                                
+                            }
+                        }
+
+                        if (qtyToFind == 0) {
+                            continue
+                        }
+
+                        let locations = findItems(part.type, qtyToFind)
+                        if (locations == null) {
+                            console.log("[error] There are no enought " + part.type + ". Construction task is aborted")
+                            friend.tasks.shift()
+                            continue
+                        }
+
+                        for(loc of locations){
+                            let from = lastPoint
+                            let grid = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) grid[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(0);
+                            for (staticObject of staticObjects) {
+                                grid[staticObject.x][staticObject.y] = -1
+                            }
+                            plan.push(...aStar(grid, from, loc, false).map(point => ({type: "move", args: {x: point.x, y: point.y}})))
+                            plan.push({
+                                type: "take",
+                                args: {
+                                    type: part.type,
+                                    qty: loc.qty
+                                }
+                            })
+                            lastPoint = loc
+                        }
+                    }
+                    
+                    let from = lastPoint
+                    let grid = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) grid[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(0);
+                    for (staticObject of staticObjects) {
+                        grid[staticObject.x][staticObject.y] = -1
+                    }
+                    let targetLoc = {x: task.args.x, y: task.args.y}
+                    plan.push(...aStar(grid, from, targetLoc, true).map(point => ({type: "move", args: {x: point.x, y: point.y}})))
+
+                    plan.push({
+                        type: "construct",
+                        args: {
+                            name: task.args.name,
+                            x: task.args.x,
+                            y: task.args.y,
+                            template: template
                         }
                     })
                     friend.plan = plan
@@ -556,6 +755,12 @@ function render() {
                         ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE / 2, TILE_SIZE / 2);
                     }
 
+                    ctx.strokeStyle = 'black'
+                    ctx.setLineDash([])
+                    ctx.strokeText(item.qty , x * TILE_SIZE + i * (TILE_SIZE / 2), y * TILE_SIZE)
+                    ctx.fill()
+                    ctx.stroke()
+
                 }
             }
         }
@@ -590,6 +795,15 @@ function render() {
 
         if (selectedObject.feature && selectedObject.feature.plant) {
             ctx.fillText("Зрелость: " + selectedObject.feature.plant.level.toFixed(2) + "%", SELECTED_INFO_AREA_X + 10, SELECTED_INFO_AREA_Y + 40);
+        }
+
+        let inventoryOffsetY = SELECTED_INFO_AREA_Y + 80
+        if (friends.includes(selectedObject)) {
+            for (let i = 0; i < selectedObject.inventory.length; i++) {
+                let item = selectedObject.inventory[i]
+                ctx.fillText(item.type + ": " + item.qty, SELECTED_INFO_AREA_X + 10, inventoryOffsetY + 20 * i);
+
+            }
         }
 
         for (button of buttons) {
