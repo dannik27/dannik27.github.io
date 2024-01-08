@@ -35,6 +35,28 @@ canvas.addEventListener('mousedown', function(e) {
     
 })
 
+canvas.addEventListener('mousemove', function(e) {
+    const rect = canvas.getBoundingClientRect()
+    const x = e.clientX - rect.x
+    const y = e.clientY - rect.y
+    if (x < SCENE_WIDTH && y < SCENE_HEIGHT) {
+        hoveredPoint = {
+            x: Math.floor(x / TILE_SIZE),
+            y: Math.floor(y / TILE_SIZE)
+        }
+    } else {
+        hoveredPoint = null
+    }
+})
+
+canvas.addEventListener('mouseleave', function(e) {
+    hoveredPoint = null
+})
+
+window.addEventListener('keypress', function(e) {
+    onKeyPressed(e)
+})
+
 
 const frank = new Image(); 
 frank.src = "img/people/frank.png"
@@ -72,6 +94,7 @@ droppedItems[1][1] = [{type: 'wood',qty: 6}]
 droppedItems[2][1] = [{type: 'wood',qty: 5}]
 droppedItems[3][1] = [{type: 'wood',qty: 6}]
 droppedItems[4][1] = [{type: 'wood',qty: 7}]
+droppedItems[5][1] = [{type: 'wood',qty: 70}]
 droppedItems[1][2] = [{type: 'berry',qty: 1}]
 
 
@@ -121,7 +144,9 @@ let buttons = [
         kind: "tree",
         features: ['plant'],
         text: "CUT",
-        priority: 4
+        priority: 4,
+        img: commandCut,
+        shortcut: 'c'
     }
 ]
 
@@ -132,16 +157,22 @@ let buildButtons = [
         img: tree1
     },
     {
+        name: "berry_bush",
+        img: bush3
+    },
+    {
         name: "bed",
         text: "BED",
         img: bed
     },
     {
-        name: "berry_bush",
-        img: bush3
+        name: "wall",
+        img: wall
     }
 ]
 
+
+let hoveredPoint = null
 
 
 let objectToBuild = null
@@ -153,6 +184,21 @@ function objectsToRender() {
 } 
 
 let globalTasksQueue = priorityQueue()
+
+function onKeyPressed(e) {
+    let code = e.keyCode
+    console.log("key pressed " + code + " " + e.key)
+    if ( code > 48 && code < 58) {
+        onBuildButtonClick(code - 49)
+    } else {
+        for(button of buttons) {
+            if (button.shortcut = e.key) {
+                onButtonClick(button.index)
+            }
+        }
+    }
+    
+}
 
 function onClick(x, y) {
     console.log(" On click " + x + " " + y)
@@ -168,7 +214,7 @@ function onClick(x, y) {
                 }
             }, 3)
         }
-        if (['bed', 'berry_bush'].includes(objectToBuild.name)) {
+        if (['bed', 'berry_bush', 'wall'].includes(objectToBuild.name)) {
             globalTasksQueue.push({
                 type: "construct",
                 args: {
@@ -221,11 +267,17 @@ function onButtonClick(index) {
 function onBuildButtonClick(index) {
     let buildButton = buildButtons[index]
     selectedObject = null
-    objectToBuild = buildButton
+    if (objectToBuild && objectToBuild == buildButton) {
+        objectToBuild = null
+    } else {
+        objectToBuild = buildButton
+    }
+    
     console.log("Button clicked " + buildButton.text)
 }
 
 function showButtons(target) {
+    if(!target.feature) return
     let buttonIndex = 0
     for (button of buttons) {
 
@@ -307,10 +359,43 @@ function createTree(x, y) {
     plants.push(newObject)
 }
 
+function recalculateOrientedImg(x, y, template) {
+    let obj = getObjectInTile(x, y)
+    if (!obj || obj.name != template.name) return
+
+    let hasWest = isTileHasObject(x - 1, y, template.name)
+    let hasEast = isTileHasObject(x + 1, y, template.name)
+    let hasNorth = isTileHasObject(x, y - 1, template.name)
+    let hasSouth = isTileHasObject(x, y + 1, template.name)
+
+    if (!hasWest && !hasEast && !hasNorth && !hasSouth) obj.img = template.orientedImg.default
+    if (hasWest && hasEast && !hasNorth && !hasSouth) obj.img = template.orientedImg.horizontal
+    if (!hasWest && !hasEast && hasNorth && hasSouth) obj.img = template.orientedImg.vertical
+    if (hasWest && hasEast && hasNorth && hasSouth) obj.img = template.orientedImg.cross
+
+    if (hasWest && hasEast && hasNorth && !hasSouth) obj.img = template.orientedImg.south
+    if (!hasWest && hasEast && hasNorth && !hasSouth) obj.img = template.orientedImg.southWest
+    if (!hasWest && hasEast && hasNorth && hasSouth) obj.img = template.orientedImg.west
+    if (!hasWest && hasEast && !hasNorth && hasSouth) obj.img = template.orientedImg.northWest
+
+    if (hasWest && hasEast && !hasNorth && hasSouth) obj.img = template.orientedImg.north
+    if (hasWest && !hasEast && !hasNorth && hasSouth) obj.img = template.orientedImg.northEast
+    if (hasWest && !hasEast && hasNorth && hasSouth) obj.img = template.orientedImg.east
+    if (hasWest && !hasEast && hasNorth && !hasSouth) obj.img = template.orientedImg.southEast
+
+    if (hasWest && !hasEast && !hasNorth && !hasSouth) obj.img = template.orientedImg.horizontal
+    if (!hasWest && hasEast && !hasNorth && !hasSouth) obj.img = template.orientedImg.horizontal
+
+    if (!hasWest && !hasEast && hasNorth && !hasSouth) obj.img = template.orientedImg.vertical
+    if (!hasWest && !hasEast && !hasNorth && hasSouth) obj.img = template.orientedImg.vertical
+
+}
+
 function createObject(x, y, template) {
     let newObject = {
         name: template.name,
         img: template.img,
+        inventory: template.inventory,
         width: 1,
         height: 1,
         x: x,
@@ -319,6 +404,13 @@ function createObject(x, y, template) {
         feature: template.feature
     }
     staticObjects.push(newObject)
+    
+    if(template.oriented) {
+        let areaPoints = [{x: x - 1, y: y - 1},{x: x - 1, y: y},{x: x - 1, y: y + 1},
+                            {x: x, y: y - 1},{x: x, y: y},{x: x, y: y + 1},
+                            {x: x  + 1, y: y - 1},{x: x + 1, y: y},{x: x + 1, y: y + 1}]
+        areaPoints.forEach(p => recalculateOrientedImg(p.x, p.y, template))
+    }
 }
 
 function getRandomInt(min, max) {
@@ -334,6 +426,15 @@ function isFreeTile(x, y) {
         }
     }
     return true
+}
+
+function getObjectInTile(x, y) {
+    for (obj of staticObjects) {
+        if (obj.x == x && obj.y == y) {
+            return obj
+        }
+    }
+    return null
 }
 
 function isTileHasObject(x, y, name) {
@@ -393,6 +494,9 @@ function hasInInventory(target, items) {
 }
 
 function removeFromInventory(target, items) {
+    if(! items) {
+        return
+    }
     for(item of items) {
         for(let i = 0; i < target.inventory.length; i++) {
             let ownItem = target.inventory[i]
@@ -507,7 +611,7 @@ function calculate() {
                     y: task.args.y
                 }
                 if (! isNear(friend, targetPoint)) {
-                } else if (!hasInInventory(friend, task.args.template.parts)) {
+                } else if (task.args.template.parts && !hasInInventory(friend, task.args.template.parts)) {
                     console.log("There is no enought parts in inventory")
                 } else if (isTileHasObject(targetPoint.x, targetPoint.y, task.args.name)) {
                     console.log(friend.name + " completed task part " + task.type)
@@ -651,47 +755,50 @@ function calculate() {
                     let plan = []
                     let lastPoint = {x: friend.x, y: friend.y}
 
-                    for(part of template.parts) {
-                        let qtyToFind = part.qty
-                        for (ownItem of friend.inventory) {
-                            if (ownItem.type == part.type) {
-                                if (ownItem.qty < part.qty) {
-                                    qtyToFind -= ownItem.qty
-                                } else {
-                                    qtyToFind = 0
+                    if (template.parts) {
+                        for(part of template.parts) {
+                            let qtyToFind = part.qty
+                            for (ownItem of friend.inventory) {
+                                if (ownItem.type == part.type) {
+                                    if (ownItem.qty < part.qty) {
+                                        qtyToFind -= ownItem.qty
+                                    } else {
+                                        qtyToFind = 0
+                                    }
+                                    
                                 }
-                                
                             }
-                        }
-
-                        if (qtyToFind == 0) {
-                            continue
-                        }
-
-                        let locations = findItems(part.type, qtyToFind)
-                        if (locations == null) {
-                            console.log("[error] There are no enought " + part.type + ". Construction task is aborted")
-                            friend.tasks.shift()
-                            continue
-                        }
-
-                        for(loc of locations){
-                            let from = lastPoint
-                            let grid = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) grid[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(0);
-                            for (staticObject of staticObjects) {
-                                grid[staticObject.x][staticObject.y] = -1
+    
+                            if (qtyToFind == 0) {
+                                continue
                             }
-                            plan.push(...aStar(grid, from, loc, false).map(point => ({type: "move", args: {x: point.x, y: point.y}})))
-                            plan.push({
-                                type: "take",
-                                args: {
-                                    type: part.type,
-                                    qty: loc.qty
+    
+                            let locations = findItems(part.type, qtyToFind)
+                            if (locations == null) {
+                                console.log("[error] There are no enought " + part.type + ". Construction task is aborted")
+                                friend.tasks.shift()
+                                continue
+                            }
+    
+                            for(loc of locations){
+                                let from = lastPoint
+                                let grid = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) grid[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(0);
+                                for (staticObject of staticObjects) {
+                                    grid[staticObject.x][staticObject.y] = -1
                                 }
-                            })
-                            lastPoint = loc
+                                plan.push(...aStar(grid, from, loc, false).map(point => ({type: "move", args: {x: point.x, y: point.y}})))
+                                plan.push({
+                                    type: "take",
+                                    args: {
+                                        type: part.type,
+                                        qty: loc.qty
+                                    }
+                                })
+                                lastPoint = loc
+                            }
                         }
                     }
+                    
                     
                     let from = lastPoint
                     let grid = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) grid[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(0);
@@ -737,6 +844,13 @@ function render() {
     ctx.lineWidth = 1
     ctx.strokeRect(0, 0, SCENE_WIDTH, SCENE_HEIGHT);
 
+
+    // for (let i = 0; i < SCENE_WIDTH / TILE_SIZE; i++) {
+    //     for (let j = 0; j < SCENE_HEIGHT / TILE_SIZE; j++) {
+    //         ctx.drawImage(surfaceGrass2, i * TILE_SIZE, j * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+    //     }
+    // }
+
     
 
     for(let x = 0; x < droppedItems.length; x++) {
@@ -755,11 +869,10 @@ function render() {
                         ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE / 2, TILE_SIZE / 2);
                     }
 
-                    ctx.strokeStyle = 'black'
+                    ctx.fillStyle = "black";
                     ctx.setLineDash([])
-                    ctx.strokeText(item.qty , x * TILE_SIZE + i * (TILE_SIZE / 2), y * TILE_SIZE)
-                    ctx.fill()
-                    ctx.stroke()
+                    ctx.font="bold 14px Arial";
+                    ctx.fillText(item.qty , x * TILE_SIZE + i * (TILE_SIZE / 2), y * TILE_SIZE)
 
                 }
             }
@@ -820,7 +933,20 @@ function render() {
                 ctx.strokeStyle = 'black';
                 ctx.lineWidth = 2
                 ctx.strokeRect(buttonX, buttonY, BUTTON_SIZE, BUTTON_SIZE, 10);
-                ctx.fillText(button.text, buttonX+(BUTTON_SIZE/2),buttonY+(BUTTON_SIZE/2));
+
+                if(button.img) {
+                    ctx.drawImage(button.img, buttonX, buttonY, BUTTON_SIZE, BUTTON_SIZE)
+                } else {
+                    ctx.fillText(button.text, buttonX+(BUTTON_SIZE/2),buttonY+(BUTTON_SIZE/2));
+                }
+
+                if(button.shortcut) {
+                    ctx.fillStyle = "red";
+                    ctx.setLineDash([])
+                    ctx.font="bold 14px Arial";
+                    ctx.fillText(button.shortcut , buttonX + 8, buttonY + 8)
+
+                }
             }
         }
     }
@@ -854,7 +980,21 @@ function render() {
             ctx.fillText(button.text, buttonX+(BUTTON_SIZE/2),buttonY+(BUTTON_SIZE/2));
         }
 
+        ctx.fillStyle = "red";
+        ctx.font="bold 20px Arial";
+        ctx.fillText(i + 1, buttonX + 10, buttonY + 10);
 
+
+    }
+
+    if (hoveredPoint) {
+        
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(102,255,153,0.5)'
+        ctx.arc(hoveredPoint.x * TILE_SIZE + (TILE_SIZE / 2), hoveredPoint.y * TILE_SIZE + (TILE_SIZE / 2), 5, 0, 2 * Math.PI, false)
+        ctx.lineWidth = 3
+        ctx.setLineDash([])
+        ctx.stroke()
     }
 
 }
