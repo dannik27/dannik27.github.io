@@ -3,7 +3,6 @@
 // const canvas = document.querySelector("#scene");
 // const ctx = canvas.getContext("2d");
 
-let TILE_SIZE = 50
 
 // let objects = [ 
 //     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,],
@@ -148,7 +147,7 @@ function calculateJoinPoints(ray, objects, center, radius) {
     for(obj of objects) {
 
         // check if point is in the same quarter
-        if(((obj.x + (obj.w / 2) - center.x) * (ray.x - center.x) < 0) || ((obj.y + (obj.h / 2) - center.y) * (ray.y - center.y) < 0)) {
+        if(((obj.x + (obj.w / 2) - center.x) * (ray.x - center.x) < 0) && ((obj.y + (obj.h / 2) - center.y) * (ray.y - center.y) < 0)) {
             continue
         }
 
@@ -197,7 +196,6 @@ function calculateJoinPoints(ray, objects, center, radius) {
 
     if (candidates.length < 1) {
         ray.blind = true
-        console.log("qq")
         return ray
     }
 
@@ -219,7 +217,6 @@ function calculateJoinPoints(ray, objects, center, radius) {
         }
         
     } else if (candidates[0].corner) {
-        // let nonCorner = candidates.find(cand => !cand.corner)
         let nonCorner = candidates[1]
         if (nonCorner) {
             candidates[0].second = {
@@ -340,7 +337,6 @@ function buildPath(rays, center, radius) {
     let arcStart = null
     for (let i = 1; i < rays.length + 1; i++) {
         let ray = raysCopy[i]
-        console.log(ray.x + " " + ray.y + " " + ray.angle)
         
         if (arcStart) {
             path.arc(center.x, center.y, radius, -arcStart.angle, -ray.angle, true)
@@ -432,6 +428,7 @@ function createLightMap(objects, lights) {
             })
 
         dropDuplicates(rays)
+        // drawObjects(objects)
         // rays.map(ray => drawRay(ray, center, radius))
 
         path.addPath(buildPath(rays, center, radius))

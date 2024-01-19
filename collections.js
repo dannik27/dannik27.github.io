@@ -18,11 +18,14 @@ const berry = new Image(); berry.src = "img/items/berry.png"
 
 const bed = new Image(); bed.src = "img/construction/bed.png"
 
+const torch = new Image(); torch.src = "img/construction/torch.png"
+
 const wall = new Image(); wall.src = "img/construction/wall1.png"
-const wallHorizontal = new Image(); wallHorizontal.src = "img/construction/wall8.png"
-const wallVertical = new Image(); wallVertical.src = "img/construction/wall12.png"
+const wallHorizontal = new Image(); wallHorizontal.src = "img/construction/wall12_5.png"
+const wallVertical = new Image(); wallVertical.src = "img/construction/wall12_4.png"
+const wallVerticalEnd = new Image(); wallVerticalEnd.src = "img/construction/wall12_2.png"
 const wallCross = new Image(); wallCross.src = "img/construction/wall6.png"
-const wallNorthWest = new Image(); wallNorthWest.src = "img/construction/wall11.png"
+const wallNorthWest = new Image(); wallNorthWest.src = "img/construction/wall12_3.png"
 const wallNorth = new Image(); wallNorth.src = "img/construction/wall9.png"
 const wallNorthEast = new Image(); wallNorthEast.src = "img/construction/wall10.png"
 const wallEast = new Image(); wallEast.src = "img/construction/wall5.png"
@@ -36,9 +39,12 @@ const commandCut = new Image(); commandCut.src = "img/commands/cut.png"
 const surfaceDirt1 = new Image(); surfaceDirt1.src = "img/surface/dirt1.png"
 const surfaceDirt2 = new Image(); surfaceDirt2.src = "img/surface/dirt2.png"
 const surfaceDirt3 = new Image(); surfaceDirt3.src = "img/surface/dirt3.png"
+const surfaceDirt4 = new Image(); surfaceDirt4.src = "img/surface/dirt4.png"
 
 const surfaceGrass1 = new Image(); surfaceGrass1.src = "img/surface/grass1.png"
 const surfaceGrass2 = new Image(); surfaceGrass2.src = "img/surface/grass3.png"
+
+const surfaceWater = new Image(); surfaceWater.src = "img/surface/water.png"
 
 let collections = {
 
@@ -58,6 +64,22 @@ let collections = {
     },
 
     objects: {
+        torch: {
+            text: "Факел",
+            name: 'torch',
+            img: torch,
+            parts: [
+                {
+                    type: "wood",
+                    qty: 10
+                }
+            ],
+            feature: {
+                light: {
+                    radius: 80
+                }
+            }
+        },
         bed: {
             text: "Кровать",
             name: 'bed',
@@ -78,20 +100,52 @@ let collections = {
 
         wall: {
             name: 'wall',
-            oriented: true,
-            orientedImg: {
-                default: wall,
-                horizontal: wallHorizontal,
-                vertical: wallVertical,
-                cross: wallCross,
-                north: wallNorth,
-                northEast: wallNorthEast,
-                east: wallEast,
-                southEast: wallSouthEast,
-                south: wallSouth,
-                southWest: wallSouthWest,
-                west: wallWest,
-                northWest: wallNorthWest
+            feature: {
+                lightBlock: {
+                    blocks: [
+                        {
+                            x: 15,
+                            y: 0,
+                            w: 10,
+                            h: 40
+                        }
+                    ]
+                },
+                obstacle: {
+                    type: "house_wall"
+                }
+            },
+            oriented: {
+                default: {
+                    img: wall,
+                },  
+                horizontal: { img: wallHorizontal, 
+                    feature: {
+                        lightBlock: { blocks: [{ x: 0, y: 0, w: 40, h: 15}] }
+                    }},
+                vertical: { 
+                    img: wallVertical, 
+                    feature: {
+                        lightBlock: { blocks: [{ x: 15, y: 0, w: 10, h: 40}] }
+                    }},
+                verticalEnd: { 
+                    img: wallVerticalEnd, 
+                    feature: {
+                        lightBlock: { blocks: [{ x: 15, y: 0, w: 10, h: 25}] }
+                    }
+                },
+                cross: { img: wallCross, },
+                north: { img: wallNorth, },
+                northEast: { img: wallNorthEast, },
+                east: { img: wallEast, },
+                southEast: { img: wallSouthEast, },
+                south: { img: wallSouth, },
+                southWest: { img: wallSouthWest, },
+                west: { img: wallWest, },
+                northWest: { img: wallNorthWest, 
+                    feature: {
+                        lightBlock: { blocks: [{ x: 15, y: 0, w: 10, h: 40}, { x: 25, y: 0, w: 15, h: 15}] }
+                } },
             },
             parts: [{type: 'wood', qty: 5}]
         },

@@ -6,6 +6,9 @@ let SCENE_HEIGHT = 480
 let TILE_SIZE = 40
 let SIDE_MENU_WIDTH = 200
 
+let TICK_DELAY = 30
+let TICKS_PER_GAME_MINUTE = 1
+
 let SELECTED_INFO_AREA_X = SCENE_WIDTH
 let SELECTED_INFO_AREA_Y = 0
 
@@ -65,22 +68,15 @@ const garry = new Image();
 garry.src = "img/people/garry.png"
 
 staticObjects = [
-    {
-        width: 1,
-        height: 1,
-        x: 3,
-        y: 4,
-        color: 'blue'
-    },
-    { width: 1,height: 1, x: 5, y: 2, color: 'blue' },
-    { width: 1,height: 1, x: 5, y: 3, color: 'blue' },
-    { width: 1,height: 1, x: 5, y: 4, color: 'blue' },
-    { width: 1,height: 1, x: 5, y: 5, color: 'blue' },
-    { width: 1,height: 1, x: 5, y: 6, color: 'blue' },
-    { width: 1,height: 1, x: 5, y: 7, color: 'blue' },
-    { width: 1,height: 1, x: 5, y: 8, color: 'blue' },
-    { width: 1,height: 1, x: 5, y: 9, color: 'blue' },
-    { width: 1,height: 1, x: 5, y: 10, color: 'blue' },
+    { width: 1,height: 1, x: 5, y: 2, img: surfaceWater },
+    { width: 1,height: 1, x: 5, y: 3, img: surfaceWater },
+    { width: 1,height: 1, x: 5, y: 4, img: surfaceWater },
+    { width: 1,height: 1, x: 6, y: 2, img: surfaceWater },
+    { width: 1,height: 1, x: 6, y: 3, img: surfaceWater },
+    { width: 1,height: 1, x: 7, y: 2, img: surfaceWater },
+    { width: 1,height: 1, x: 7, y: 3, img: surfaceWater },
+    { width: 1,height: 1, x: 8, y: 2, img: surfaceWater },
+    { width: 1,height: 1, x: 8, y: 3, img: surfaceWater },
 ]
 
 let plants = []
@@ -89,12 +85,12 @@ createTree(3, 3)
 
 droppedItems = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) droppedItems[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(null);
 
-droppedItems[8][2] = [{type: 'sprout',qty: 1}]
+droppedItems[8][1] = [{type: 'sprout',qty: 1}]
 droppedItems[1][1] = [{type: 'wood',qty: 6}]
 droppedItems[2][1] = [{type: 'wood',qty: 5}]
 droppedItems[3][1] = [{type: 'wood',qty: 6}]
 droppedItems[4][1] = [{type: 'wood',qty: 7}]
-droppedItems[5][1] = [{type: 'wood',qty: 70}]
+droppedItems[5][1] = [{type: 'wood',qty: 170}]
 droppedItems[1][2] = [{type: 'berry',qty: 1}]
 
 
@@ -168,6 +164,10 @@ let buildButtons = [
     {
         name: "wall",
         img: wall
+    },
+    {
+        name: "torch",
+        img: torch
     }
 ]
 
@@ -214,7 +214,7 @@ function onClick(x, y) {
                 }
             }, 3)
         }
-        if (['bed', 'berry_bush', 'wall'].includes(objectToBuild.name)) {
+        if (['bed', 'berry_bush', 'wall', "torch"].includes(objectToBuild.name)) {
             globalTasksQueue.push({
                 type: "construct",
                 args: {
@@ -368,26 +368,35 @@ function recalculateOrientedImg(x, y, template) {
     let hasNorth = isTileHasObject(x, y - 1, template.name)
     let hasSouth = isTileHasObject(x, y + 1, template.name)
 
-    if (!hasWest && !hasEast && !hasNorth && !hasSouth) obj.img = template.orientedImg.default
-    if (hasWest && hasEast && !hasNorth && !hasSouth) obj.img = template.orientedImg.horizontal
-    if (!hasWest && !hasEast && hasNorth && hasSouth) obj.img = template.orientedImg.vertical
-    if (hasWest && hasEast && hasNorth && hasSouth) obj.img = template.orientedImg.cross
 
-    if (hasWest && hasEast && hasNorth && !hasSouth) obj.img = template.orientedImg.south
-    if (!hasWest && hasEast && hasNorth && !hasSouth) obj.img = template.orientedImg.southWest
-    if (!hasWest && hasEast && hasNorth && hasSouth) obj.img = template.orientedImg.west
-    if (!hasWest && hasEast && !hasNorth && hasSouth) obj.img = template.orientedImg.northWest
+    let orientedProps
 
-    if (hasWest && hasEast && !hasNorth && hasSouth) obj.img = template.orientedImg.north
-    if (hasWest && !hasEast && !hasNorth && hasSouth) obj.img = template.orientedImg.northEast
-    if (hasWest && !hasEast && hasNorth && hasSouth) obj.img = template.orientedImg.east
-    if (hasWest && !hasEast && hasNorth && !hasSouth) obj.img = template.orientedImg.southEast
+    if (!hasWest && !hasEast && !hasNorth && !hasSouth) orientedProps = template.oriented.default
+    if (hasWest && hasEast && !hasNorth && !hasSouth) orientedProps = template.oriented.horizontal
+    if (!hasWest && !hasEast && hasNorth && hasSouth) orientedProps = template.oriented.vertical
+    if (hasWest && hasEast && hasNorth && hasSouth) orientedProps = template.oriented.cross
 
-    if (hasWest && !hasEast && !hasNorth && !hasSouth) obj.img = template.orientedImg.horizontal
-    if (!hasWest && hasEast && !hasNorth && !hasSouth) obj.img = template.orientedImg.horizontal
+    if (hasWest && hasEast && hasNorth && !hasSouth) orientedProps = template.oriented.south
+    if (!hasWest && hasEast && hasNorth && !hasSouth) orientedProps = template.oriented.southWest
+    if (!hasWest && hasEast && hasNorth && hasSouth) orientedProps = template.oriented.west
+    if (!hasWest && hasEast && !hasNorth && hasSouth) orientedProps = template.oriented.northWest
 
-    if (!hasWest && !hasEast && hasNorth && !hasSouth) obj.img = template.orientedImg.vertical
-    if (!hasWest && !hasEast && !hasNorth && hasSouth) obj.img = template.orientedImg.vertical
+    if (hasWest && hasEast && !hasNorth && hasSouth) orientedProps = template.oriented.north
+    if (hasWest && !hasEast && !hasNorth && hasSouth) orientedProps = template.oriented.northEast
+    if (hasWest && !hasEast && hasNorth && hasSouth) orientedProps = template.oriented.east
+    if (hasWest && !hasEast && hasNorth && !hasSouth) orientedProps = template.oriented.southEast
+
+    if (hasWest && !hasEast && !hasNorth && !hasSouth) orientedProps = template.oriented.horizontal
+    if (!hasWest && hasEast && !hasNorth && !hasSouth) orientedProps = template.oriented.horizontal
+
+    if (!hasWest && !hasEast && !hasNorth && hasSouth) orientedProps = template.oriented.vertical
+
+    if (!hasWest && !hasEast && hasNorth && !hasSouth) orientedProps = template.oriented.verticalEnd
+
+    obj.img = orientedProps.img
+    if (orientedProps.feature && orientedProps.feature.lightBlock) {
+        obj.feature.lightBlock.blocks = orientedProps.feature.lightBlock.blocks
+    }
 
 }
 
@@ -395,13 +404,13 @@ function createObject(x, y, template) {
     let newObject = {
         name: template.name,
         img: template.img,
-        inventory: template.inventory,
+        inventory: template.inventory ? JSON.parse(JSON.stringify(template.inventory)): [],
         width: 1,
         height: 1,
         x: x,
         y: y,
         health: 100,
-        feature: template.feature
+        feature: template.feature ? JSON.parse(JSON.stringify(template.feature)): {}
     }
     staticObjects.push(newObject)
     
@@ -523,12 +532,38 @@ function putToInventory(friend, item) {
 
 
 function ticker() {
+    const start = performance.now();
     calculate()
+    const calc = performance.now();
     render()
-    setTimeout(ticker, 100)
+    const rendered = performance.now();
+    // console.log("calc " + (calc - start) + " render " + (rendered - calc))
+    setTimeout(ticker, TICK_DELAY)
+}
+
+let gameTime = {
+    ticks: 0
+}
+
+function calculateTime() {
+    gameTime.ticks += 1
+    gameTime.minutes = Math.floor(gameTime.ticks / TICKS_PER_GAME_MINUTE) % 60
+    gameTime.hours =  (Math.floor(gameTime.ticks / TICKS_PER_GAME_MINUTE / 60) + 8) % 24
+}
+
+function calculateTerrainGrid() {
+    let grid = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) grid[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(0);
+    for (staticObject of staticObjects) {
+        if (staticObject.feature && staticObject.feature.obstacle) {
+            grid[staticObject.x][staticObject.y] = -1
+        }  
+    }
+    return grid
 }
 
 function calculate() {
+
+    calculateTime()
 
     staticObjects.filter((obj) => obj && obj.feature && obj.feature['plant']).forEach((plant) => {
         let plantFeature = plant.feature.plant
@@ -666,10 +701,7 @@ function calculate() {
                     
                     let from = {x: friend.x, y: friend.y}
                     let to = {x: task.args.x, y: task.args.y}
-                    let grid = new Array(SCENE_HEIGHT / TILE_SIZE); for (let i=0; i<12; ++i) grid[i] = new Array(16).fill(0);
-                    for (staticObject of staticObjects) {
-                        grid[staticObject.y][staticObject.x] = -1
-                    }
+                    let grid = calculateTerrainGrid()
                     let plan = aStar(grid, from, to).map(point => ({type: "move", args: {x: point.x, y: point.y}}))
                     friend.plan = plan
                 }
@@ -683,10 +715,7 @@ function calculate() {
                     
                     let from = {x: friend.x, y: friend.y}
                     let to = {x: target.x, y: target.y}
-                    let grid = new Array(SCENE_HEIGHT / TILE_SIZE); for (let i=0; i<12; ++i) grid[i] = new Array(16).fill(0);
-                    for (staticObject of staticObjects) {
-                        grid[staticObject.y][staticObject.x] = -1
-                    }
+                    let grid = calculateTerrainGrid()
                     let plan = aStar(grid, from, to, true).map(point => ({type: "move", args: {x: point.x, y: point.y}}))
                     plan.push({
                         type: "cut",
@@ -712,10 +741,7 @@ function calculate() {
                     }
                     
                     let from = {x: friend.x, y: friend.y}
-                    let grid = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) grid[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(0);
-                    for (staticObject of staticObjects) {
-                        grid[staticObject.x][staticObject.y] = -1
-                    }
+                    let grid = calculateTerrainGrid()
                     let plan = aStar(grid, from, sproutLocation, false).map(point => ({type: "move", args: {x: point.x, y: point.y}}))
 
                     
@@ -782,10 +808,7 @@ function calculate() {
     
                             for(loc of locations){
                                 let from = lastPoint
-                                let grid = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) grid[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(0);
-                                for (staticObject of staticObjects) {
-                                    grid[staticObject.x][staticObject.y] = -1
-                                }
+                                let grid = calculateTerrainGrid()
                                 plan.push(...aStar(grid, from, loc, false).map(point => ({type: "move", args: {x: point.x, y: point.y}})))
                                 plan.push({
                                     type: "take",
@@ -801,10 +824,7 @@ function calculate() {
                     
                     
                     let from = lastPoint
-                    let grid = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) grid[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(0);
-                    for (staticObject of staticObjects) {
-                        grid[staticObject.x][staticObject.y] = -1
-                    }
+                    let grid = calculateTerrainGrid()
                     let targetLoc = {x: task.args.x, y: task.args.y}
                     plan.push(...aStar(grid, from, targetLoc, true).map(point => ({type: "move", args: {x: point.x, y: point.y}})))
 
@@ -837,6 +857,103 @@ function calculate() {
 
 }
 
+function renderDark() {
+    let points = []
+    
+    staticObjects
+        .filter(obj => obj.feature && obj.feature.lightBlock)
+        .forEach(obj => {
+            if (obj.feature.lightBlock.blocks) {
+                for (block of obj.feature.lightBlock.blocks) {
+                    points.push({
+                        x: obj.x * TILE_SIZE + block.x,
+                        y: obj.y * TILE_SIZE + block.y,
+                        w: block.w,
+                        h: block.h
+                    })
+                }
+            } else {
+                    points.push({
+                        x: obj.x * TILE_SIZE,
+                        y: obj.y * TILE_SIZE,
+                        w: TILE_SIZE,
+                        h: TILE_SIZE
+                    })
+            }})
+
+            // drawObjects(points)
+            
+
+    let lights = staticObjects
+        .filter(obj => obj.feature && obj.feature.light)
+        .map(obj => ({
+            x: obj.x * TILE_SIZE + (TILE_SIZE / 2),
+            y: obj.y * TILE_SIZE + (TILE_SIZE / 2),
+            radius: obj.feature.light.radius
+        }))
+
+    let path = createLightMap(points, lights)
+
+    var can2 = document.createElement('canvas');
+    can2.width = canvas.width;
+    can2.height = canvas.height;
+    var ctx2 = can2.getContext('2d');
+    ctx2.clip(path)
+    ctx2.drawImage(canvas, 0, 0)
+
+    for (light of lights) {
+        
+        ctx2.fillStyle = 'rgba(255, 255, 0, 0.03)'
+        ctx2.beginPath()
+        ctx2.arc(light.x, light.y, light.radius, 0, 2 * Math.PI, false)
+        ctx2.fill() 
+        ctx2.beginPath()
+        ctx2.arc(light.x, light.y, light.radius - 20, 0, 2 * Math.PI, false)
+        ctx2.fill() 
+        if (light.radius > 40) {
+            ctx2.beginPath()
+            ctx2.arc(light.x, light.y, light.radius - 40, 0, 2 * Math.PI, false)
+            ctx2.fill() 
+        }
+        if (light.radius > 60) {
+            ctx2.beginPath()
+            ctx2.arc(light.x, light.y, light.radius - 60, 0, 2 * Math.PI, false)
+            ctx2.fill() 
+        }
+    }
+
+    let darkLevel = 0
+    if (gameTime.hours >= 18)
+        darkLevel = '0.1'
+    if (gameTime.hours >= 19 || gameTime.hours < 8)
+        darkLevel = '0.2'
+    if (gameTime.hours >= 20 || gameTime.hours < 7)
+        darkLevel = '0.3'
+    if (gameTime.hours >= 21 || gameTime.hours < 6)
+        darkLevel = '0.4'
+    if (gameTime.hours >= 22 || gameTime.hours < 5)
+        darkLevel = '0.6'
+    if (gameTime.hours >= 0 && gameTime.hours < 4)
+        darkLevel = '0.8'
+    ctx.fillStyle = "rgb(0, 0, 0, " + darkLevel + ")"
+    ctx.fillRect(0, 0, SCENE_WIDTH, SCENE_HEIGHT)
+    ctx.drawImage(can2, 0, 0);
+}
+
+function toTwoSigns(number) {
+    if (number < 10) {
+        return "0" + number
+    } else {
+        return number
+    }
+}
+
+function renderTime() {
+    ctx.font="bold 14px Arial";
+    ctx.fillStyle = 'white'
+    ctx.fillText(toTwoSigns(gameTime.hours) + ":" + toTwoSigns(gameTime.minutes) , 30, 10)
+}
+
 function render() {
     ctx.fillStyle = "white";
     ctx.fillRect(0, 0, SCENE_WIDTH + SIDE_MENU_WIDTH, SCENE_HEIGHT);
@@ -845,11 +962,11 @@ function render() {
     ctx.strokeRect(0, 0, SCENE_WIDTH, SCENE_HEIGHT);
 
 
-    // for (let i = 0; i < SCENE_WIDTH / TILE_SIZE; i++) {
-    //     for (let j = 0; j < SCENE_HEIGHT / TILE_SIZE; j++) {
-    //         ctx.drawImage(surfaceGrass2, i * TILE_SIZE, j * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-    //     }
-    // }
+    for (let i = 0; i < SCENE_WIDTH / TILE_SIZE; i++) {
+        for (let j = 0; j < SCENE_HEIGHT / TILE_SIZE; j++) {
+            ctx.drawImage(surfaceDirt4, i * TILE_SIZE, j * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+        }
+    }
 
     
 
@@ -986,6 +1103,10 @@ function render() {
 
 
     }
+
+    renderDark()
+
+    renderTime()
 
     if (hoveredPoint) {
         
