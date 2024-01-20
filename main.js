@@ -183,7 +183,7 @@ function objectsToRender() {
     return [...staticObjects, ...friends]
 } 
 
-let globalTasksQueue = priorityQueue()
+let globalTasksQueue = tasksQueue()
 
 function onKeyPressed(e) {
     let code = e.keyCode
@@ -212,7 +212,7 @@ function onClick(x, y) {
                     x,
                     y
                 }
-            }, 3)
+            })
         }
         if (['bed', 'berry_bush', 'wall', "torch"].includes(objectToBuild.name)) {
             globalTasksQueue.push({
@@ -222,7 +222,7 @@ function onClick(x, y) {
                     x,
                     y
                 }
-            }, 3)
+            })
         }
         objectToBuild = null
     }
@@ -396,6 +396,8 @@ function recalculateOrientedImg(x, y, template) {
     obj.img = orientedProps.img
     if (orientedProps.feature && orientedProps.feature.lightBlock) {
         obj.feature.lightBlock.blocks = orientedProps.feature.lightBlock.blocks
+    } else {
+        obj.feature.lightBlock.blocks = template.oriented.default.feature.lightBlock.blocks
     }
 
 }
@@ -481,6 +483,7 @@ function findItems(type, qty) {
 
     if (qtyLeft > 0) {
         console.log("Unable to find " + qtyLeft + " of " + type)
+        return null
     }
 
     return result;
@@ -695,6 +698,7 @@ function calculate() {
                 if ( task.type == 'move') {
 
                     if(friend.x === task.args.x && friend.y === task.args.y) {
+                        friend.tasks[0].complete()
                         friend.tasks.shift()
                         console.log(friend.name + " completed " + task.type)
                     }
@@ -709,6 +713,7 @@ function calculate() {
                     let target = task.args.target
 
                     if(target.dead || target.health < 0) {
+                        friend.tasks[0].complete()
                         friend.tasks.shift()
                         console.log(friend.name + " completed " + task.type)
                     }
@@ -728,21 +733,23 @@ function calculate() {
                 if ( task.type == 'grow') {
 
                     if(! isFreeTile(task.args.x, task.args.y)) {
+                        friend.tasks[0].complete()
                         friend.tasks.shift()
                         console.log(friend.name + " completed " + task.type)
                         continue
                     }
 
-                    let sproutLocation = findItems('sprout', 1)[0]
-                    if (sproutLocation == null) {
+                    let sproutLocation = findItems('sprout', 1)
+                    if (sproutLocation == null || sproutLocation.length == 0) {
                         console.log("There are no sprout. Grow task is aborted")
+                        friend.tasks[0].complete()
                         friend.tasks.shift()
                         continue
                     }
                     
                     let from = {x: friend.x, y: friend.y}
                     let grid = calculateTerrainGrid()
-                    let plan = aStar(grid, from, sproutLocation, false).map(point => ({type: "move", args: {x: point.x, y: point.y}}))
+                    let plan = aStar(grid, from, sproutLocation[0], false).map(point => ({type: "move", args: {x: point.x, y: point.y}}))
 
                     
 
@@ -755,7 +762,7 @@ function calculate() {
                     })
 
                     let to = {x: task.args.x, y: task.args.y}
-                    let plan2 = aStar(grid, sproutLocation, to, true).map(point => ({type: "move", args: {x: point.x, y: point.y}}))
+                    let plan2 = aStar(grid, sproutLocation[0], to, true).map(point => ({type: "move", args: {x: point.x, y: point.y}}))
                     plan.push(...plan2)
 
                     plan.push({
@@ -771,6 +778,7 @@ function calculate() {
                 if ( task.type == 'construct') {
 
                     if(isTileHasObject(task.args.x, task.args.y, task.args.name)) {
+                        friend.tasks[0].complete()
                         friend.tasks.shift()
                         console.log(friend.name + " completed " + task.type)
                         continue
@@ -781,6 +789,7 @@ function calculate() {
                     let plan = []
                     let lastPoint = {x: friend.x, y: friend.y}
 
+                    let itemsFound = true
                     if (template.parts) {
                         for(part of template.parts) {
                             let qtyToFind = part.qty
@@ -802,8 +811,8 @@ function calculate() {
                             let locations = findItems(part.type, qtyToFind)
                             if (locations == null) {
                                 console.log("[error] There are no enought " + part.type + ". Construction task is aborted")
-                                friend.tasks.shift()
-                                continue
+                                itemsFound = false
+                                break
                             }
     
                             for(loc of locations){
@@ -821,27 +830,32 @@ function calculate() {
                             }
                         }
                     }
-                    
-                    
-                    let from = lastPoint
-                    let grid = calculateTerrainGrid()
-                    let targetLoc = {x: task.args.x, y: task.args.y}
-                    plan.push(...aStar(grid, from, targetLoc, true).map(point => ({type: "move", args: {x: point.x, y: point.y}})))
 
-                    plan.push({
-                        type: "construct",
-                        args: {
-                            name: task.args.name,
-                            x: task.args.x,
-                            y: task.args.y,
-                            template: template
-                        }
-                    })
-                    friend.plan = plan
+                    if (!itemsFound) {
+                        friend.tasks[0].reject()
+                        friend.tasks.shift()
+                    }   else {
+                        let from = lastPoint
+                        let grid = calculateTerrainGrid()
+                        let targetLoc = {x: task.args.x, y: task.args.y}
+                        plan.push(...aStar(grid, from, targetLoc, true).map(point => ({type: "move", args: {x: point.x, y: point.y}})))
+    
+                        plan.push({
+                            type: "construct",
+                            args: {
+                                name: task.args.name,
+                                x: task.args.x,
+                                y: task.args.y,
+                                template: template
+                            }
+                        })
+                        friend.plan = plan
+                    }
+             
                 }
             } else {
 
-                let nextTask = globalTasksQueue.pop()
+                let nextTask = globalTasksQueue.take(friend)
                 if (nextTask) {
                     friend.tasks.push(nextTask)
                     console.log("New task " + nextTask.type + " was assigned to " + friend.name)
@@ -1105,6 +1119,9 @@ function render() {
     }
 
     renderDark()
+
+
+    renderTasks({ ctx, tileSize: TILE_SIZE}, globalTasksQueue.listActual())
 
     renderTime()
 

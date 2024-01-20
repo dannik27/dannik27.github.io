@@ -118,6 +118,9 @@ let collections = {
             oriented: {
                 default: {
                     img: wall,
+                    feature: {
+                        lightBlock: { blocks: [{ x: 15, y: 0, w: 10, h: 40}] }
+                    },
                 },  
                 horizontal: { img: wallHorizontal, 
                     feature: {
