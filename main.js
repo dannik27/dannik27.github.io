@@ -1,4 +1,4 @@
-console.log("I'm alive!s")
+console.log("I'm alive!")
 
 const canvas = document.querySelector("#scene");
 const ctx = canvas.getContext("2d");
@@ -130,19 +130,6 @@ friends = [
     }
 ]
 
-let buttons = [
-    {
-        name: "cut",
-        kind: "tree",
-        features: ['plant'],
-        text: "CUT",
-        priority: 4,
-        img: commandCut,
-        shortcut: 'c'
-    }
-]
-
-
 
 let hoveredPoint = null
 
@@ -191,7 +178,6 @@ function onClick(x, y) {
                 selectedObject = null
             } else {
                 selectedObject = target
-                showButtons(target)
             }
 
             if(friends.includes(target)) {
@@ -203,47 +189,6 @@ function onClick(x, y) {
 
 }
 
-function onButtonClick(index) {
-    if (selectedObject) {
-        for(button of buttons) {
-            if (button.index == index) {
-                
-                if (button.name == "cut") {
-                    globalTasksQueue.push({
-                        type: "cut",
-                        args: {
-                            target: selectedObject
-                        }
-                    }, button.priority)
-                }
-
-            }
-        }
-    }
-}
-
-
-function showButtons(target) {
-    if(!target.feature) return
-    let buttonIndex = 0
-    for (button of buttons) {
-
-        let show = false
-        for(featureName of Object.keys(target.feature)) {
-            if (button.features.includes(featureName)) {
-                show = true
-            }
-        }
-
-        if (show) {
-            button.index = buttonIndex
-            buttonIndex += 1
-        } else {
-            button.index = null
-        }
-    }
-
-}
 
 function hitObject(target, damage) {
     target.health -= damage
