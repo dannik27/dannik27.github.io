@@ -328,6 +328,27 @@ let widgetsLibrary = {
                 }
                 
             }
+        },
+        onMouseMove(args, point) {
+            for (child of args.children) {
+                let x = absoluteX(child.args)
+                let y = absoluteY(child.args)
+                if (point.x > x
+                        && point.x < x + child.args.width 
+                        && point.y > y 
+                        && point.y < y + child.args.height
+                        && child.handler.onMouseMove) {
+                            child.handler.onMouseMove(child.args, point)
+                }
+                
+            }
+        },
+        onMouseLeave(args) {
+            for (child of args.children) {
+                if (child.handler.onMouseLeave) {
+                    child.handler.onMouseLeave(child.args)
+                }
+            }
         }
     },
     rect: {
@@ -472,6 +493,18 @@ function registerUIEvents(canvas) {
         
         widgetsLibrary.container.onRelease(widgetsTreeCompiled.args, {x, y})
     })
+
+    canvas.addEventListener('mousemove', function(e) {
+        const rect = canvas.getBoundingClientRect()
+        const x = e.clientX - rect.x
+        const y = e.clientY - rect.y
+        
+        widgetsLibrary.container.onMouseMove(widgetsTreeCompiled.args, {x, y})
+    })
+
+    canvas.addEventListener('mouseleave', function(e) {
+        widgetsLibrary.container.onMouseLeave(widgetsTreeCompiled.args)
+    })
     
     window.addEventListener('keydown', function(e) {
         let code = e.keyCode
@@ -505,7 +538,7 @@ function renderUI(ctx, model) {
         widgetsTreeCompiled.args.y = 0
     }
     
-
+    registeredShortcuts = {}
     widgetsLibrary.container.calculate(widgetsTreeCompiled.args)
     widgetsLibrary.container.render(widgetsTreeCompiled.args, ctx)
 }

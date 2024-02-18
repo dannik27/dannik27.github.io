@@ -14,37 +14,6 @@ let TICKS_PER_GAME_MINUTE = 1
 
 
 
-canvas.addEventListener('mousedown', function(e) {
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.x
-    const y = e.clientY - rect.y
-    if (x < SCENE_WIDTH && y < SCENE_HEIGHT) {
-        onClick(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE))
-    }
-    
-})
-
-canvas.addEventListener('mousemove', function(e) {
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.x
-    const y = e.clientY - rect.y
-    if (x < SCENE_WIDTH && y < SCENE_HEIGHT) {
-        hoveredPoint = {
-            x: Math.floor(x / TILE_SIZE),
-            y: Math.floor(y / TILE_SIZE)
-        }
-    } else {
-        hoveredPoint = null
-    }
-})
-
-canvas.addEventListener('mouseleave', function(e) {
-    hoveredPoint = null
-})
-
-
-
-
 registerUIEvents(canvas)
 
 const frank = new Image(); 
@@ -428,12 +397,50 @@ function putToInventory(friend, item) {
 
 function ticker() {
     const start = performance.now();
-    calculate()
+    // calculate()
     const calc = performance.now();
-    render()
+    // render()
+
+    renderUI(ctx, widgetsTree())
+
     const rendered = performance.now();
     // console.log("calc " + (calc - start) + " render " + (rendered - calc))
     setTimeout(ticker, TICK_DELAY)
+}
+
+let mainSceneHandler = {
+    calculate(args) {
+        calculate()
+    },
+    render(args, ctx) {
+        render()
+    },
+    onPress(args, point) {
+        args.pressed = true
+
+    },
+    onRelease(args, point) {
+        if (args.pressed) {
+            if (point.x < SCENE_WIDTH && point.y < SCENE_HEIGHT) {
+                onClick(Math.floor(point.x / TILE_SIZE), Math.floor(point.y / TILE_SIZE))
+            }
+            args.pressed = false
+        }
+        
+    },
+    onMouseMove(args, point) {
+        if (point.x < SCENE_WIDTH && point.y < SCENE_HEIGHT) {
+            hoveredPoint = {
+                x: Math.floor(point.x / TILE_SIZE),
+                y: Math.floor(point.y / TILE_SIZE)
+            }
+        } else {
+            hoveredPoint = null
+        }
+    },
+    onMouseLeave(args) {
+        hoveredPoint = null
+    }
 }
 
 let gameTime = {
@@ -905,6 +912,12 @@ let widgetsTree = function () { return {
         layout: "absolute",
         children: [
             {
+                handler: mainSceneHandler,
+                args: {
+                    right: 0,bottom: 0,left: 0,top: 0
+                }
+            },
+            {
                 handler: widgetsLibrary.container,
                 args: {
                     layout: 'horizontal',
@@ -1098,8 +1111,6 @@ function render() {
             ctx.fillStyle = obj.color;
             ctx.fillRect(obj.x * TILE_SIZE, obj.y * TILE_SIZE, obj.width * TILE_SIZE, obj.height * TILE_SIZE);
         }
-        
-        
     }
 
     renderDark()
@@ -1118,42 +1129,6 @@ function render() {
         ctx.stroke()
     }
 
-    renderUI(ctx, widgetsTree())
-
 }
 
 ticker()
-
-// let queue = priorityQueue()
-// queue.push("qwe5", 5)
-// queue.push("qwe25", 25)
-// queue.push("qwe12", 12)
-// queue.push("qwe3", 3)
-// console.log(queue.pop())
-// console.log(queue.pop())
-// console.log(queue.pop())
-// console.log(queue.pop())
-
-// let grid = [
-//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-//     [0, -1, -1, -1, -1, -1, 0, 0, 0, 0],
-//     [0, 0, 0, 0, 0, -1, 0, 0, 0, 0],
-//     [0, 0, 0, 0, 0, -1, 0, 0, 0, 0],
-//     [0, 0, 0, 0, 0, -1, 0, 0, 0, 0],
-//     [0, 0, 0, 0, 0, -1, 0, 0, 0, 0],
-//     [0, 0, 0, 0, 0, -1, 0, 0, 0, 0],
-//     [0, 0, -1, -1, -1, -1, 0, 0, 0, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-// ]
-
-// let a = {x: 4, y: 6}
-// let b = {x: 8, y: 7}
-
-// let path = aStar(grid, a, b)
-// console.log(path)
-
-// // // console.log(getNeighbors(grid, a))
-
-// // setTimeout(aStar, 10000, grid, a, b)
-// // console.log(aStar(grid, a, b))
