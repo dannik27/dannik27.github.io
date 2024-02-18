@@ -1,27 +1,17 @@
 console.log("I'm alive!s")
 
+const canvas = document.querySelector("#scene");
+const ctx = canvas.getContext("2d");
 
-let SCENE_WIDTH = 640
-let SCENE_HEIGHT = 480
+
+let SCENE_WIDTH = canvas.width
+let SCENE_HEIGHT = canvas.height
 let TILE_SIZE = 40
-let SIDE_MENU_WIDTH = 200
 
 let TICK_DELAY = 30
 let TICKS_PER_GAME_MINUTE = 1
 
-let SELECTED_INFO_AREA_X = SCENE_WIDTH
-let SELECTED_INFO_AREA_Y = 0
 
-
-let BUTTON_SIZE = 40
-let BUTTONS_AREA_X = SCENE_WIDTH
-let BUTTONS_AREA_Y = SCENE_HEIGHT - 2 * BUTTON_SIZE
-
-let BUILD_BUTTONS_AREA_X = 0
-let BUILD_BUTTONS_AREA_Y = SCENE_HEIGHT
-
-const canvas = document.querySelector("#scene");
-const ctx = canvas.getContext("2d");
 
 
 canvas.addEventListener('mousedown', function(e) {
@@ -30,10 +20,6 @@ canvas.addEventListener('mousedown', function(e) {
     const y = e.clientY - rect.y
     if (x < SCENE_WIDTH && y < SCENE_HEIGHT) {
         onClick(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE))
-    } else if (x > BUTTONS_AREA_X && y > BUTTONS_AREA_Y) {
-        onButtonClick(Math.floor((x - SCENE_WIDTH) / BUTTON_SIZE))
-    } else {
-        onBuildButtonClick(Math.floor(x / BUTTON_SIZE))
     }
     
 })
@@ -56,10 +42,10 @@ canvas.addEventListener('mouseleave', function(e) {
     hoveredPoint = null
 })
 
-window.addEventListener('keypress', function(e) {
-    onKeyPressed(e)
-})
 
+
+
+registerUIEvents(canvas)
 
 const frank = new Image(); 
 frank.src = "img/people/frank.png"
@@ -98,6 +84,8 @@ friends = [
     {
         name: "Frank",
         health: 100,
+        satiety: 100,
+        freshness: 100,
         width: 1,
         height: 1,
         x: 3,
@@ -108,6 +96,9 @@ friends = [
         inventory: [
             {type: 'wood', qty: 4}
         ],
+        feature: {
+            friend: {}
+        },
         skill: {
             lumberjack: 3
         },
@@ -117,6 +108,8 @@ friends = [
     {
         name: "Garry",
         health: 100,
+        satiety: 100,
+        freshness: 100,
         width: 1,
         height: 1,
         x: 12,
@@ -125,6 +118,9 @@ friends = [
         img: garry,
         speed: 1,
         inventory: [],
+        feature: {
+            friend: {}
+        },
         tasks: [
         ],
         plan: [],
@@ -146,30 +142,6 @@ let buttons = [
     }
 ]
 
-let buildButtons = [
-    {
-        name: "tree",
-        text: "bom",
-        img: tree1
-    },
-    {
-        name: "berry_bush",
-        img: bush3
-    },
-    {
-        name: "bed",
-        text: "BED",
-        img: bed
-    },
-    {
-        name: "wall",
-        img: wall
-    },
-    {
-        name: "torch",
-        img: torch
-    }
-]
 
 
 let hoveredPoint = null
@@ -185,26 +157,12 @@ function objectsToRender() {
 
 let globalTasksQueue = tasksQueue()
 
-function onKeyPressed(e) {
-    let code = e.keyCode
-    console.log("key pressed " + code + " " + e.key)
-    if ( code > 48 && code < 58) {
-        onBuildButtonClick(code - 49)
-    } else {
-        for(button of buttons) {
-            if (button.shortcut = e.key) {
-                onButtonClick(button.index)
-            }
-        }
-    }
-    
-}
 
 function onClick(x, y) {
     console.log(" On click " + x + " " + y)
 
     if (objectToBuild) {
-        if (objectToBuild.name == 'tree') {
+        if (objectToBuild == 'tree') {
             globalTasksQueue.push({
                 type: "grow",
                 args: {
@@ -214,11 +172,11 @@ function onClick(x, y) {
                 }
             })
         }
-        if (['bed', 'berry_bush', 'wall', "torch"].includes(objectToBuild.name)) {
+        if (['bed', 'berry_bush', 'wall', "torch"].includes(objectToBuild)) {
             globalTasksQueue.push({
                 type: "construct",
                 args: {
-                    name: objectToBuild.name,
+                    name: objectToBuild,
                     x,
                     y
                 }
@@ -264,17 +222,6 @@ function onButtonClick(index) {
     }
 }
 
-function onBuildButtonClick(index) {
-    let buildButton = buildButtons[index]
-    selectedObject = null
-    if (objectToBuild && objectToBuild == buildButton) {
-        objectToBuild = null
-    } else {
-        objectToBuild = buildButton
-    }
-    
-    console.log("Button clicked " + buildButton.text)
-}
 
 function showButtons(target) {
     if(!target.feature) return
@@ -968,9 +915,190 @@ function renderTime() {
     ctx.fillText(toTwoSigns(gameTime.hours) + ":" + toTwoSigns(gameTime.minutes) , 30, 10)
 }
 
+function selectObjectToBuild(name) {
+    if (!name || name == objectToBuild) {
+        objectToBuild = null
+        return
+    } else {
+        objectToBuild = name
+    }
+}
+
+let buildButtons = [
+    { name: 'tree', img: tree1, shortcut: "1"},
+    { name: 'berry_bush', img: bush3, shortcut: "2"},
+    { name: 'bed', img: bed, shortcut: "3"},
+    { name: 'wall', img: wall, shortcut: "4"},
+    { name: 'torch', img: torch, shortcut: "5"}
+]
+
+let commands = [
+    { name: 'cut', img: commandCut, shortcut: "c", features: ["plant"], action: () => {
+        globalTasksQueue.push({
+            type: "cut",
+            args: {
+                target: selectedObject
+            }
+        }, 5)
+    }}
+]
+
+function actionApplicable(action, target) {
+    if (!target || !target.feature) return false
+    for(featureName of Object.keys(target.feature)) {
+        if (action.features.includes(featureName)) {
+            return true
+        }
+    }
+    return false
+}
+
+let widgetsTree = function () { return {
+    name: "root",
+    handler: widgetsLibrary.container,
+    args: {
+        layout: "absolute",
+        children: [
+            {
+                handler: widgetsLibrary.container,
+                args: {
+                    layout: 'horizontal',
+                    gap: 3, padding: 5, left: 10, bottom: 10,
+                    children: widgets.for(buildButtons, null, (item) => ({
+                        handler: widgetsLibrary.button,
+                        args: { width: 40, height: 40, img: item.img, shortcut: item.shortcut, 
+                            action: () => selectObjectToBuild(item.name), selected: objectToBuild == item.name }
+                    }))
+                }
+            },
+            ...widgets.if(selectedObject != null, () => ([{
+                handler: widgetsLibrary.container,
+                args: {
+                    top: 10, right: 10, backgroundColor: 'grey', padding: 3,
+                    children: [
+                        {
+                            handler: widgetsLibrary.container,
+                            args: {
+                                layout: 'horizontal',
+                                children: [
+                                    {
+                                        handler: widgetsLibrary.rect,
+                                        args: {
+                                            width: 80,
+                                            height: 80,
+                                            img: selectedObject?.img
+                                        }
+                                    },
+                                    {
+                                        handler: widgetsLibrary.container,
+                                        args: {
+                                            children: [
+                                                {
+                                                    handler: widgetsLibrary.text,
+                                                    args: {
+                                                        text: selectedObject?.name + " (" + selectedObject?.health + ")",
+                                                        padding: 5
+                                                    }
+                                                },
+                                                ...widgets.if(selectedObject?.feature?.plant, () => ([{
+                                                    handler: widgetsLibrary.text,
+                                                    args: {
+                                                        text: "Зрелость: " + selectedObject.feature.plant.level.toFixed(2) + "%",
+                                                        padding: 5
+                                                    }
+                                                }]))
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            handler: widgetsLibrary.tabs,
+                            args: {
+                                backgroundColor: 'grey',
+                                tabs: [
+                                    ...widgets.if(selectedObject?.feature?.friend, () => ([{ name: "status", text: 'Статус' },
+                                        { name: "inventory", text: "Инвентарь"}])),
+                                    ...widgets.if(selectedObject?.feature?.friend, () => ([{ name: "skills", text: "Навыки", }]))
+                                ],
+                                children: [
+                                    ...widgets.if(selectedObject?.feature?.friend, () => ([{
+                                        handler: widgetsLibrary.container,
+                                        args: {
+                                            padding: 5,
+                                            gap: 5,
+                                            children: [{
+                                                handler: widgetsLibrary.text,
+                                                args: {text: "Здоровье: " + selectedObject.health}
+                                            },{
+                                                handler: widgetsLibrary.text,
+                                                args: {text: "Сытость: " + selectedObject.satiety}
+                                            },{
+                                                handler: widgetsLibrary.text,
+                                                args: {text: "Бодрость: " + selectedObject.freshness}
+                                            }]
+                                        }
+                                    },{
+                                        handler: widgetsLibrary.container,
+                                        args: {
+                                            children: widgets.for(selectedObject.inventory ?? [], () => true, (item) => ({
+                                                handler: widgetsLibrary.text,
+                                                args: {
+                                                    text: item.type + " " + item.qty,
+                                                    padding: 5
+                                                }
+                                            }))
+                                        }
+                                    }])),
+                                    
+                                    ...widgets.if(selectedObject?.feature?.friend, () => ([{
+                                        handler: widgetsLibrary.container,
+                                        args: {
+                                            backgroundColor: "green", padding: 5, gap: 5,
+                                            children: [
+                                                {
+                                                    handler: widgetsLibrary.button,
+                                                    args: {
+                                                        width: 40, height: 40, backgroundColor: "yellow"
+                                                    }
+                                                },
+                                                {
+                                                    handler: widgetsLibrary.button,
+                                                    args: {
+                                                        width: 150, height: 40, backgroundColor: "yellow"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }])),
+                                ]
+                            }
+                        },
+                        {
+                            handler: widgetsLibrary.container,
+                            args: {
+                                layout: 'horizontal',
+                                gap: 3,
+                                children: widgets.for(commands, (command) => actionApplicable(command, selectedObject), (command) => ({
+                                    handler: widgetsLibrary.button,
+                                    args: { width: 40, height: 40, img: command.img, shortcut: command.shortcut, action: command.action }
+                                            
+                                }))
+                            }
+                        }
+                    ]
+                }
+            }]))
+        ]
+    }
+    
+}}
+
+
 function render() {
     ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, SCENE_WIDTH + SIDE_MENU_WIDTH, SCENE_HEIGHT);
+    ctx.fillRect(0, 0, SCENE_WIDTH, SCENE_HEIGHT);
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1
     ctx.strokeRect(0, 0, SCENE_WIDTH, SCENE_HEIGHT);
@@ -1029,97 +1157,7 @@ function render() {
         
     }
 
-    if (selectedObject) {
-
-        ctx.font="20px Georgia";
-        ctx.fillStyle = "#000000";
-        ctx.textAlign="left"; 
-        ctx.textBaseline = "middle";
-        ctx.fillText(selectedObject.name + "   " + selectedObject.health, SELECTED_INFO_AREA_X + 10, SELECTED_INFO_AREA_Y + 20);
-
-        if (selectedObject.feature && selectedObject.feature.plant) {
-            ctx.fillText("Зрелость: " + selectedObject.feature.plant.level.toFixed(2) + "%", SELECTED_INFO_AREA_X + 10, SELECTED_INFO_AREA_Y + 40);
-        }
-
-        let inventoryOffsetY = SELECTED_INFO_AREA_Y + 80
-        if (friends.includes(selectedObject)) {
-            for (let i = 0; i < selectedObject.inventory.length; i++) {
-                let item = selectedObject.inventory[i]
-                ctx.fillText(item.type + ": " + item.qty, SELECTED_INFO_AREA_X + 10, inventoryOffsetY + 20 * i);
-
-            }
-        }
-
-        for (button of buttons) {
-            if (button.index != null) {
-                let buttonX = BUTTONS_AREA_X + button.index * BUTTON_SIZE
-                let buttonY = BUTTONS_AREA_Y
-
-                ctx.fillStyle = "#abc";
-                ctx.fillRect(buttonX, buttonY, BUTTON_SIZE, BUTTON_SIZE, 10);
-                ctx.font="14px Georgia";
-                ctx.textAlign="center"; 
-                ctx.textBaseline = "middle";
-                ctx.fillStyle = "#000000";
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = 2
-                ctx.strokeRect(buttonX, buttonY, BUTTON_SIZE, BUTTON_SIZE, 10);
-
-                if(button.img) {
-                    ctx.drawImage(button.img, buttonX, buttonY, BUTTON_SIZE, BUTTON_SIZE)
-                } else {
-                    ctx.fillText(button.text, buttonX+(BUTTON_SIZE/2),buttonY+(BUTTON_SIZE/2));
-                }
-
-                if(button.shortcut) {
-                    ctx.fillStyle = "red";
-                    ctx.setLineDash([])
-                    ctx.font="bold 14px Arial";
-                    ctx.fillText(button.shortcut , buttonX + 8, buttonY + 8)
-
-                }
-            }
-        }
-    }
-
-    for (let i = 0; i < buildButtons.length; i++) {
-        let button = buildButtons[i]
-
-        let buttonX = BUILD_BUTTONS_AREA_X + i * BUTTON_SIZE
-        let buttonY = BUILD_BUTTONS_AREA_Y
-
-        ctx.fillStyle = "#abc";
-        ctx.fillRect(buttonX, buttonY, BUTTON_SIZE, BUTTON_SIZE, 10);
-        ctx.font="14px Georgia";
-        ctx.textAlign="center"; 
-        ctx.textBaseline = "middle";
-        ctx.fillStyle = "#000000";
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 2
-        ctx.strokeRect(buttonX, buttonY, BUTTON_SIZE, BUTTON_SIZE, 10);
-
-        if (button == objectToBuild) {
-            ctx.strokeStyle = 'green';
-            ctx.lineWidth = 6
-            ctx.strokeRect(buttonX, buttonY, BUTTON_SIZE,  BUTTON_SIZE);
-        }
-        
-
-        if(button.img) {
-            ctx.drawImage(button.img, buttonX, buttonY, BUTTON_SIZE, BUTTON_SIZE)
-        } else {
-            ctx.fillText(button.text, buttonX+(BUTTON_SIZE/2),buttonY+(BUTTON_SIZE/2));
-        }
-
-        ctx.fillStyle = "red";
-        ctx.font="bold 20px Arial";
-        ctx.fillText(i + 1, buttonX + 10, buttonY + 10);
-
-
-    }
-
     renderDark()
-
 
     renderTasks({ ctx, tileSize: TILE_SIZE}, globalTasksQueue.listActual())
 
@@ -1134,6 +1172,8 @@ function render() {
         ctx.setLineDash([])
         ctx.stroke()
     }
+
+    renderUI(ctx, widgetsTree())
 
 }
 

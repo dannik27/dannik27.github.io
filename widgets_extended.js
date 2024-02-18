@@ -7,6 +7,7 @@ const tempCtx = tempCanvas.getContext("2d");
 let registeredShortcuts = {}
 
 function line(ctx, color, points) {
+    ctx.lineWidth = '1' 
     ctx.strokeStyle = color
     ctx.beginPath()
     ctx.moveTo(points[0].x, points[0].y)
@@ -19,12 +20,6 @@ function line(ctx, color, points) {
 function textWidth(text, font) {
     tempCtx.font = font
     return tempCtx.measureText(text).width
-}
-
-function textHeight(text, font) {
-    tempCtx.font = font
-    var fontMeasure = tempCtx.measureText(text);
-    return fontMeasure.actualBoundingBoxAscent + fontMeasure.actualBoundingBoxDescent;
 }
 
 function absoluteX(args) {
@@ -48,53 +43,12 @@ function absoluteY(args) {
 }
 
 let widgetsLibrary = {
-    text: {
-        calculate(args) {
-            let font = args.font ?? 'bold 14px Arial'
-            let padding = args.padding ?? 0
-
-            args.width = textWidth(args.text, font) + padding * 2
-            args.height = textHeight(args.text, font) + padding * 2
-
-        },
-        render(args, ctx) {
-
-            let font = args.font ?? 'bold 14px Arial'
-            let color = args.color ?? 'black'
-            let padding = args.padding ?? 0
-            ctx.font = font
-            ctx.fillStyle = color
-            ctx.textAlign="left"; 
-            ctx.textBaseline="top"
-            ctx.fillText(args.text , args.x + padding, args.y + padding)
-            
-            if (ctx.debug) {
-                ctx.lineWidth = '2' 
-                line(ctx, 'red', [{x: args.x, y: args.y + 5}, {x: args.x, y: args.y}, {x: args.x + 5, y: args.y}])
-                line(ctx, 'red', [{x: args.x + args.width - 5, y: args.y}, {x: args.x + args.width, y: args.y}, {x: args.x + args.width, y: args.y + 5}])
-                line(ctx, 'red', [{x: args.x, y: args.y + args.height - 5}, {x: args.x, y: args.y + args.height}, {x: args.x + 5, y: args.y + args.height}])
-                line(ctx, 'red', [{x: args.x + args.width - 5, y: args.y + args.height}, {x: args.x + args.width, y: args.y + args.height}, 
-                    {x: args.x + args.width, y: args.y + args.height - 5}])
-            }
-            
-
-
-        },
-        onPress(args, point) {
-
-        },
-        onRelease(args, point) {
-            
-        }
-    },
     tabs: {
         calculate(args) {
             args.selectedTab = args.selectedTab ? args.selectedTab : 0
             if (!args.children || args.children.length == 0) {
-                // args.width = args.width ? args.width : 0
-                // args.height = args.height ? args.height : 0
-                args.width = 0
-                args.height = 0
+                args.width = args.width ? args.width : 0
+                args.height = args.height ? args.height : 0
                 return
             }
 
@@ -132,10 +86,6 @@ let widgetsLibrary = {
 
         },
         render( args, ctx) {
-
-            if (!args.children || args.children.length == 0) {
-                return
-            }
 
             ctx.fillStyle = args.backgroundColor
             ctx.fillRect(args.x, args.y, args.width, args.height)
@@ -333,13 +283,8 @@ let widgetsLibrary = {
     rect: {
         calculate(args) {},
         render(args, ctx) {
-            if (args.backgroundColor) {
-                ctx.fillStyle = args.backgroundColor
-                ctx.fillRect(absoluteX(args), absoluteY(args), args.width, args.height)
-            }
-            if (args.img) {
-                ctx.drawImage(args.img, args.x + 4, args.y + 4, args.width - 8, args.height - 8)
-            }
+            ctx.fillStyle = args.backgroundColor
+            ctx.fillRect(absoluteX(args), absoluteY(args), args.width, args.height)
         }
     },
     button: {
@@ -512,16 +457,9 @@ function renderUI(ctx, model) {
 
 
 let widgets = {
-    for: function(items, filter, renderFunction) {
+    for: function(items, filter, render) {
         return filter 
-            ? items.filter(filter).map(renderFunction) 
-            : items.map(renderFunction)
-    },
-    if: function(condition, renderFunction) {
-        if (condition) {
-            return renderFunction()
-        } else {
-            return []
-        }
+            ? items.filter(filter).map(render) 
+            : items.map(render)
     }
 }
