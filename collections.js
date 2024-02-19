@@ -46,6 +46,8 @@ const surfaceGrass2 = new Image(); surfaceGrass2.src = "img/surface/grass3.png"
 
 const surfaceWater = new Image(); surfaceWater.src = "img/surface/water.png"
 
+const info = new Image(); info.src = "img/info.png"
+
 let collections = {
 
 

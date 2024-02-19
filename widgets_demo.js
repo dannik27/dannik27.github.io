@@ -179,7 +179,6 @@ registerUIEvents(mainCanvas)
 
 function ticker() {
     renderUI(context2d, widgetsTree())
-
     setTimeout(ticker, 100)
 }
 

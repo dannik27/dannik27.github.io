@@ -47,14 +47,43 @@ function absoluteY(args) {
     return y
 }
 
+function getLines(text, maxWidth) {
+    var words = text.split(" ");
+    var lines = [];
+    var currentLine = words[0];
+
+    for (var i = 1; i < words.length; i++) {
+        var word = words[i];
+        var width = tempCtx.measureText(currentLine + " " + word).width;
+        if (width < maxWidth) {
+            currentLine += " " + word;
+        } else {
+            lines.push(currentLine);
+            currentLine = word;
+        }
+    }
+    lines.push(currentLine);
+    return lines;
+}
+
 let widgetsLibrary = {
     text: {
         calculate(args) {
             let font = args.font ?? 'bold 14px Arial'
             let padding = args.padding ?? 0
 
+
             args.width = textWidth(args.text, font) + padding * 2
-            args.height = textHeight(args.text, font) + padding * 2
+
+            if (args.maxWidth && args.width > args.maxWidth) {
+                args.lines = getLines(args.text, args.maxWidth)
+                args.width = args.maxWidth
+            } else {
+                args.lines = [args.text]
+            }
+
+            args.lineHeight = textHeight(args.text, font) + padding * 2
+            args.height = args.lineHeight * args.lines.length
 
         },
         render(args, ctx) {
@@ -66,7 +95,11 @@ let widgetsLibrary = {
             ctx.fillStyle = color
             ctx.textAlign="left"; 
             ctx.textBaseline="top"
-            ctx.fillText(args.text , args.x + padding, args.y + padding)
+
+            for(let i = 0; i < args.lines.length; i++) {
+                ctx.fillText(args.lines[i], args.x + padding, (args.y + padding) + args.lineHeight * i)
+            }
+            
             
             if (ctx.debug) {
                 ctx.lineWidth = '2' 
@@ -311,7 +344,8 @@ let widgetsLibrary = {
                 if (point.x > x
                         && point.x < x + child.args.width 
                         && point.y > y 
-                        && point.y < y + child.args.height) {
+                        && point.y < y + child.args.height
+                        && child.handler.onPress) {
                             child.handler.onPress(child.args, point)
                             return
                 }
@@ -401,6 +435,12 @@ let widgetsLibrary = {
 
             if (args.img) {
                 ctx.drawImage(args.img, x + 4, y + 4, args.width - 8, args.height - 8)
+            } else if (args.text) {
+                ctx.textAlign="center"; 
+                ctx.textBaseline="middle"
+                ctx.fillStyle = "black";
+                ctx.font="bold 14px Arial";
+                ctx.fillText(args.text, x + w / 2, y + h / 2);
             }
 
             
@@ -542,7 +582,6 @@ function renderUI(ctx, model) {
     widgetsLibrary.container.calculate(widgetsTreeCompiled.args)
     widgetsLibrary.container.render(widgetsTreeCompiled.args, ctx)
 }
-
 
 let widgets = {
     for: function(items, filter, renderFunction) {

@@ -36,6 +36,10 @@ staticObjects = [
 
 let plants = []
 
+let messages = []
+
+messages.push({text: "sada", lifetime: 100})
+
 createTree(3, 3)
 
 droppedItems = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) droppedItems[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(null);
@@ -453,6 +457,44 @@ function calculateTime() {
     gameTime.hours =  (Math.floor(gameTime.ticks / TICKS_PER_GAME_MINUTE / 60) + 8) % 24
 }
 
+function calculateMessages() {
+    for(let i = 0; i < messages.length; i++) {
+        let message = messages[i]
+        if(message.lifetime != null) {
+            message.lifetime -= 1
+            if (message.lifetime < 0) {
+                messages = messages.filter(item => item != message)
+                i -= 1
+            }
+        }
+    }
+}
+
+function friendDie(friend, reason) {
+    staticObjects = staticObjects.filter(item => item !== friend)
+    friends = friends.filter(item => item != friend)
+    if (friend == selectedObject) {
+        selectedObject = null
+    }
+    messages.push({
+        text: "Friend " + friend.name + " dead by " + reason,
+        img: friend.img
+    })
+}
+
+function calculateStats() {
+    for(friend of friends) {
+
+        friend.satiety -= 0.1
+        friend.freshness -= 0.05
+
+        if (friend.satiety < 0) {
+            friendDie(friend, "starvation")
+        }
+
+    }
+}
+
 function calculateTerrainGrid() {
     let grid = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) grid[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(0);
     for (staticObject of staticObjects) {
@@ -466,6 +508,8 @@ function calculateTerrainGrid() {
 function calculate() {
 
     calculateTime()
+    calculateStats()
+    calculateMessages()
 
     staticObjects.filter((obj) => obj && obj.feature && obj.feature['plant']).forEach((plant) => {
         let plantFeature = plant.feature.plant
@@ -988,13 +1032,13 @@ let widgetsTree = function () { return {
                                             gap: 5,
                                             children: [{
                                                 handler: widgetsLibrary.text,
-                                                args: {text: "Здоровье: " + selectedObject.health}
+                                                args: {text: "Здоровье: " + Math.floor(selectedObject.health)}
                                             },{
                                                 handler: widgetsLibrary.text,
-                                                args: {text: "Сытость: " + selectedObject.satiety}
+                                                args: {text: "Сытость: " + Math.floor(selectedObject.satiety)}
                                             },{
                                                 handler: widgetsLibrary.text,
-                                                args: {text: "Бодрость: " + selectedObject.freshness}
+                                                args: {text: "Бодрость: " + Math.floor(selectedObject.freshness)}
                                             }]
                                         }
                                     },{
@@ -1047,7 +1091,27 @@ let widgetsTree = function () { return {
                         }
                     ]
                 }
-            }]))
+            }])),
+            {
+                handler: widgetsLibrary.container,
+                args: {
+                    right: 10, bottom: 10, gap: 5, children: widgets.for(messages, () => true, (message => ({
+                            handler: widgetsLibrary.container,
+                            args: {
+                                layout: "horizontal", backgroundColor: "rgb(100, 100, 100, 0.7)", gap: 5, padding: 5,
+                                children: [
+                                    { handler: widgetsLibrary.rect, args: { width: 40, height: 40, img: message.img ?? info }},
+                                    { handler: widgetsLibrary.text, args: { text: message.text, padding: 5, maxWidth: 200 }},
+                                    {
+                                        handler: widgetsLibrary.button,
+                                        args: { width: 15, height: 15, text: "x", action: () => { messages = messages.filter(item => item != message) }}
+                                    }
+                                ]
+                            }
+                        }
+                    )))
+                }
+            }
         ]
     }
     
