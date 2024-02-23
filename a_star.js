@@ -22,7 +22,7 @@ function shortestPath(grid, from, targets, near) {
     let sortedByDumbDistance = targets.map((el) => {
         el.dumbDistance = dumbDistance([from, el])
         return el
-    }).sort((t1, t2) => t2.dumbDistance - t1.dumbDistance)
+    }).sort((t1, t2) => t1.dumbDistance - t2.dumbDistance)
 
     for (let i = 0; i < sortedByDumbDistance.length; i++) {
         let aStarPath = aStar(grid, from, sortedByDumbDistance[i], near)
