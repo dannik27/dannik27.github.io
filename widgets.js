@@ -67,6 +67,81 @@ function getLines(text, maxWidth) {
 }
 
 let widgetsLibrary = {
+    checkbox: {
+        calculate(args) {
+            let font = args.font ?? 'bold 14px Arial'
+            let padding = args.padding ?? 0
+
+            args.textOffset = 20
+
+            args.width = textWidth(args.text, font) + padding * 2 + args.textOffset
+
+            if (args.maxWidth && args.width > args.maxWidth) {
+                args.lines = getLines(args.text, args.maxWidth - args.textOffset)
+                args.width = args.maxWidth
+            } else {
+                args.lines = [args.text]
+            }
+
+            args.lineHeight = textHeight(args.text, font) + padding * 2
+            args.height = args.lineHeight * args.lines.length
+
+        },
+        render(args, ctx) {
+
+            let font = args.font ?? 'bold 14px Arial'
+            let color = args.color ?? 'black'
+            let padding = args.padding ?? 0
+            ctx.font = font
+            ctx.fillStyle = color
+            ctx.textAlign="left"; 
+            ctx.textBaseline="top"
+
+            ctx.strokeStyle = "black"
+            ctx.lineWidth = 1
+            ctx.strokeRect(args.x + padding, args.y + padding, 10, 10)
+
+            if(args.selected) {
+                ctx.lineWidth = 3
+                line(ctx, "black", [{x: args.x + padding, y: args.y + 6 + padding}, 
+                    {x: args.x + 4 + padding, y: args.y + 10 + padding}, {x: args.x + 10 + padding, y: args.y + 1 + padding}])
+            }
+
+            for(let i = 0; i < args.lines.length; i++) {
+                ctx.fillText(args.lines[i], args.x + padding + args.textOffset, (args.y + padding) + args.lineHeight * i)
+            }
+            
+            
+            if (ctx.debug) {
+                ctx.lineWidth = '2' 
+                line(ctx, 'red', [{x: args.x, y: args.y + 5}, {x: args.x, y: args.y}, {x: args.x + 5, y: args.y}])
+                line(ctx, 'red', [{x: args.x + args.width - 5, y: args.y}, {x: args.x + args.width, y: args.y}, {x: args.x + args.width, y: args.y + 5}])
+                line(ctx, 'red', [{x: args.x, y: args.y + args.height - 5}, {x: args.x, y: args.y + args.height}, {x: args.x + 5, y: args.y + args.height}])
+                line(ctx, 'red', [{x: args.x + args.width - 5, y: args.y + args.height}, {x: args.x + args.width, y: args.y + args.height}, 
+                    {x: args.x + args.width, y: args.y + args.height - 5}])
+            }
+            
+
+
+        },
+        onPress(args, point) {
+            args.pressed = true
+        },
+        onRelease(args, point) {
+            if (args.pressed) {
+                if(args.state == "selected") {
+                    args.state = "none"
+                } else {
+                    args.state = "selected"
+                }
+                if (args.action) {
+                    args.action(args.state == "selected")
+                }
+                args.pressed = false
+            }
+            
+        }
+    },
     text: {
         calculate(args) {
             let font = args.font ?? 'bold 14px Arial'
@@ -203,8 +278,28 @@ let widgetsLibrary = {
                     args.selectedTab = i
                 }
             }
+            let selected = args.children[args.selectedTab]
+            let x = absoluteX(selected.args)
+            let y = absoluteY(selected.args)
+            if (point.x > x
+                    && point.x < x + selected.args.width 
+                    && point.y > y 
+                    && point.y < y + selected.args.height
+                    && selected.handler.onPress) {
+                        selected.handler.onPress(selected.args, point)
+                        return
+            }
         },
-        onRelease(args, point) {}
+        onRelease(args, point) {
+            if (!args.children || args.children.length == 0) {
+                return
+            }
+            let selected = args.children[args.selectedTab]
+            if (selected.handler.onRelease) {
+                selected.handler.onRelease(selected.args, point)
+            }
+
+        }
     },
     container: {
         calculate(args) {

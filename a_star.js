@@ -4,7 +4,60 @@ function heuristic(a, b) {
     return Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
 }
 
-function aStar(grid, a, b, near) {
+function dumbDistance(points) {
+    let distance = 0
+
+    let current = points[0]
+
+    for (let i = 1; i < points.length; i++) {
+        distance += Math.abs(current.x - points[i].x)
+        distance += Math.abs(current.y - points[i].y)
+    }
+
+    return distance
+}
+
+function shortestPath(grid, from, targets, near) {
+
+    let sortedByDumbDistance = targets.map((el) => {
+        el.dumbDistance = dumbDistance([from, el])
+        return el
+    }).sort((t1, t2) => t2.dumbDistance - t1.dumbDistance)
+
+    for (let i = 0; i < sortedByDumbDistance.length; i++) {
+        let aStarPath = aStar(grid, from, sortedByDumbDistance[i], near)
+        let aStarDistance = dumbDistance(aStarPath)
+
+        if(i == sortedByDumbDistance.length - 1) {
+            return {
+                target: sortedByDumbDistance[i],
+                path: aStarPath
+            }
+        }
+
+        if (aStarDistance <= sortedByDumbDistance[i].dumbDistance) {
+            return {
+                target: sortedByDumbDistance[i],
+                path: aStarPath
+            }
+        }
+
+    }
+
+}
+
+function copyGrid(grid) {
+    let gridCopy = new Array(grid.length); for (let i=0; i<grid.length; ++i) gridCopy[i] = new Array(grid[0].length).fill(0)
+    for (let x = 0; x < gridCopy.length; x++) {
+        for (let y = 0; y < gridCopy[x].length; y++) {
+            gridCopy[x][y] = grid[x][y]
+        }
+    }
+    return gridCopy
+}
+
+function aStar(originalGrid, a, b, near) {
+    let grid = copyGrid(originalGrid)
     let frontier = priorityQueue()
     frontier.push(a, 0)
     while (! frontier.isEmpty()) {

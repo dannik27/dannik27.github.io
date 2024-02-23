@@ -48,19 +48,23 @@ const surfaceWater = new Image(); surfaceWater.src = "img/surface/water.png"
 
 const info = new Image(); info.src = "img/info.png"
 
-let collections = {
+const shelf = new Image(); shelf.src = "img/construction/shelf.png"
 
+let collections = {
 
     items: {
 
         wood: {
-            img: wood
+            img: wood,
+            type: "other"
         },
         sprout: {
-            img: sprout
+            img: sprout,
+            type: "other"
         },
         berry: {
-            img: berry
+            img: berry,
+            type: "food"
         }
 
     },
@@ -72,7 +76,7 @@ let collections = {
             img: torch,
             parts: [
                 {
-                    type: "wood",
+                    name: "wood",
                     qty: 10
                 }
             ],
@@ -82,19 +86,33 @@ let collections = {
                 }
             }
         },
+        storage: {
+            text: "Склад",
+            name: "storage",
+            img: shelf,
+            zIndex: 0,
+            parts: [
+                { name: "wood", qty: 10 }
+            ],
+            feature: {
+                storage: {
+                    types: ["food", "other"]
+                }
+            }
+        },
         bed: {
             text: "Кровать",
             name: 'bed',
             img: bed,
             parts: [
                 {
-                    type: "wood",
+                    name: "wood",
                     qty: 20
                 }
             ],
             inventory: [
                 {
-                    type: "wood",
+                    name: "wood",
                     qty: 10
                 }
             ]
@@ -152,31 +170,31 @@ let collections = {
                         lightBlock: { blocks: [{ x: 15, y: 0, w: 10, h: 40}, { x: 25, y: 0, w: 15, h: 15}] }
                 } },
             },
-            parts: [{type: 'wood', qty: 5}]
+            parts: [{name: 'wood', qty: 5}]
         },
 
         tree: {
             name: "tree",
             growRate: 1,
-            parts: [{type: "sprout", qty: 1}],
+            parts: [{name: "sprout", qty: 1}],
             img: tree0,
             feature: { plant: { level: 0, type: "tree" } },
             phases: [
                 {
                     level: 0,
                     img: tree0,
-                    inventory: [{ type: 'wood', qty: 3 }]
+                    inventory: [{ name: 'wood', qty: 3 }]
                 },
                 {
                     level: 40,
                     img: tree1,
-                    inventory: [{ type: 'wood', qty: 8 }]
+                    inventory: [{ name: 'wood', qty: 8 }]
                 },
                 {
                     level: 90,
                     img: tree2,
                     height: 2,
-                    inventory: [{ type: 'wood', qty: 12 }, { type: 'sprout', qty: 1 }]
+                    inventory: [{ name: 'wood', qty: 12 }, { name: 'sprout', qty: 1 }]
                 }
             ]
 
@@ -185,30 +203,30 @@ let collections = {
         berry_bush: {
             name: "berry_bush",
             growRate: 1,
-            parts: [{type: "berry", qty: 1}],
+            parts: [{name: "berry", qty: 1}],
             img: bush1,
             feature: { plant: { level: 0, type: "berry_bush" } },
             phases: [
                 {
                     level: 0,
                     img: bush1,
-                    inventory: [{ type: 'wood', qty: 1 }]
+                    inventory: [{ name: 'wood', qty: 1 }]
                 },
                 {
                     level: 40,
                     img: bush2,
-                    inventory: [{ type: 'wood', qty: 3 }]
+                    inventory: [{ name: 'wood', qty: 3 }]
                 },
                 {
                     level: 100,
                     img: bush3,
                     inventory: [
                         {
-                            type: 'wood',
+                            name: 'wood',
                             qty: 3
                         },
                         {
-                            type: 'berry',
+                            name: 'berry',
                             qty: 5
                         }
                     ]

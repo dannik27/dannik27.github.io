@@ -3,12 +3,17 @@
 function tasksQueue() {
     return {
         items: [],
-        push(task, priority = 1) {
+        push(task, priority = 1, key = null) {
+            if (key && this.items.find(t => t.status != "completed" && t.key == key)) {
+                // duplicate
+                return
+            }
             let taskWrapper = {
                 task,
                 priority,
                 status: 'queue',
-                delay: 0
+                delay: 0,
+                key
             }
             task.complete = function() {
                 taskWrapper.status = 'completed'

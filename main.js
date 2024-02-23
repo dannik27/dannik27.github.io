@@ -23,16 +23,36 @@ const garry = new Image();
 garry.src = "img/people/garry.png"
 
 staticObjects = [
-    { width: 1,height: 1, x: 5, y: 2, img: surfaceWater },
-    { width: 1,height: 1, x: 5, y: 3, img: surfaceWater },
-    { width: 1,height: 1, x: 5, y: 4, img: surfaceWater },
-    { width: 1,height: 1, x: 6, y: 2, img: surfaceWater },
-    { width: 1,height: 1, x: 6, y: 3, img: surfaceWater },
-    { width: 1,height: 1, x: 7, y: 2, img: surfaceWater },
-    { width: 1,height: 1, x: 7, y: 3, img: surfaceWater },
-    { width: 1,height: 1, x: 8, y: 2, img: surfaceWater },
-    { width: 1,height: 1, x: 8, y: 3, img: surfaceWater },
+    { width: 1,height: 1, x: 5, y: 2, img: surfaceWater, zIndex: 0 },
+    { width: 1,height: 1, x: 5, y: 3, img: surfaceWater, zIndex: 0 },
+    { width: 1,height: 1, x: 5, y: 4, img: surfaceWater, zIndex: 0 },
+    { width: 1,height: 1, x: 6, y: 2, img: surfaceWater, zIndex: 0 },
+    { width: 1,height: 1, x: 6, y: 3, img: surfaceWater, zIndex: 0 },
+    { width: 1,height: 1, x: 7, y: 2, img: surfaceWater, zIndex: 0 },
+    { width: 1,height: 1, x: 7, y: 3, img: surfaceWater, zIndex: 0 },
+    { width: 1,height: 1, x: 8, y: 2, img: surfaceWater, zIndex: 0 },
+    { width: 1,height: 1, x: 8, y: 3, img: surfaceWater, zIndex: 0 },
 ]
+
+staticObjects.push({
+    "name": "storage",
+    "img": shelf,
+    "inventory": [],
+    "width": 1,
+    "height": 1,
+    "zIndex": 0,
+    "x": 7,
+    "y": 5,
+    "health": 100,
+    "feature": {
+        "storage": {
+            "types": [
+                "food",
+                "other"
+            ]
+        }
+    }
+})
 
 let plants = []
 
@@ -44,13 +64,13 @@ createTree(3, 3)
 
 droppedItems = new Array(SCENE_WIDTH / TILE_SIZE); for (let i=0; i<SCENE_WIDTH / TILE_SIZE; ++i) droppedItems[i] = new Array(SCENE_HEIGHT / TILE_SIZE).fill(null);
 
-droppedItems[8][1] = [{type: 'sprout',qty: 1}]
-droppedItems[1][1] = [{type: 'wood',qty: 6}]
-droppedItems[2][1] = [{type: 'wood',qty: 5}]
-droppedItems[3][1] = [{type: 'wood',qty: 6}]
-droppedItems[4][1] = [{type: 'wood',qty: 7}]
-droppedItems[5][1] = [{type: 'wood',qty: 170}]
-droppedItems[1][2] = [{type: 'berry',qty: 1}]
+droppedItems[8][1] = [{name: 'sprout',qty: 1}]
+droppedItems[1][1] = [{name: 'wood',qty: 6}]
+droppedItems[2][1] = [{name: 'wood',qty: 5}]
+droppedItems[3][1] = [{name: 'wood',qty: 6}]
+droppedItems[4][1] = [{name: 'wood',qty: 7}]
+droppedItems[5][1] = [{name: 'wood',qty: 170}]
+droppedItems[1][2] = [{name: 'berry',qty: 1}]
 
 
 friends = [
@@ -67,7 +87,7 @@ friends = [
         img: frank,
         speed: 1,
         inventory: [
-            {type: 'wood', qty: 4}
+            {name: 'wood', qty: 4}
         ],
         feature: {
             friend: {}
@@ -132,7 +152,7 @@ function onClick(x, y) {
                 }
             })
         }
-        if (['bed', 'berry_bush', 'wall', "torch"].includes(objectToBuild)) {
+        if (['bed', 'berry_bush', 'wall', "torch", "storage"].includes(objectToBuild)) {
             globalTasksQueue.push({
                 type: "construct",
                 args: {
@@ -151,6 +171,7 @@ function onClick(x, y) {
                 selectedObject = null
             } else {
                 selectedObject = target
+                console.log(selectedObject)
             }
 
             if(friends.includes(target)) {
@@ -187,9 +208,9 @@ function hitObject(target, damage) {
 
 function dropItem(item, x, y) {
     if (droppedItems[x][y]) {
-        droppedItems[x][y].push(item)
+        droppedItems[x][y].push(Object.assign({}, item))
     } else {
-        droppedItems[x][y] = [item]
+        droppedItems[x][y] = [Object.assign({}, item)]
     }
 }
 
@@ -199,6 +220,7 @@ function createTree(x, y) {
         img: tree0,
         width: 1,
         height: 1,
+        zIndex: 1,
         x: x,
         y: y,
         health: 100,
@@ -211,11 +233,11 @@ function createTree(x, y) {
         },
         inventory: [
             {
-                type: 'wood',
+                name: 'wood',
                 qty: 10
             },
             {
-                type: 'sprout',
+                name: 'sprout',
                 qty: getRandomInt(0, 1)
             }
         ]
@@ -272,6 +294,7 @@ function createObject(x, y, template) {
         name: template.name,
         img: template.img,
         inventory: template.inventory ? JSON.parse(JSON.stringify(template.inventory)): [],
+        zIndex: template.zIndex ?? 1,
         width: 1,
         height: 1,
         x: x,
@@ -322,7 +345,18 @@ function isTileHasObject(x, y, name) {
     return false
 }
 
-function findItems(type, qty) {
+function isTileHasItem(x, y, name) {
+    let items = droppedItems[x][y]
+    if (!items || items.length == 0) return false
+    for (item of items) {
+        if (item.name == name) {
+            return true
+        }
+    }
+    return false
+}
+
+function findItems(name, qty) {
     let result = []
     let qtyLeft = qty
     mainloop: for(let x = 0; x < droppedItems.length; x++) {
@@ -331,7 +365,7 @@ function findItems(type, qty) {
             if(current && current.length > 0) {
                 for (let i = 0; i < current.length; i++) {
 
-                    if(current[i].type == type) {
+                    if(current[i].name == name) {
 
                         let qtyToTake = qtyLeft < current[i].qty ? qtyLeft : current[i].qty
 
@@ -347,37 +381,42 @@ function findItems(type, qty) {
     }
 
     if (qtyLeft > 0) {
-        console.log("Unable to find " + qtyLeft + " of " + type)
+        console.log("Unable to find " + qtyLeft + " of " + name)
         return null
     }
 
     return result;
 }
 
+function countInInventory(target, itemName) {
+    for(ownItem of target.inventory) {
+        if (ownItem.name == itemName) {
+            return ownItem.qty
+        }
+    }
+    return 0
+}
+
 function hasInInventory(target, items) {
     if (!target.inventory) return false
 
     for(item of items) {
-        let found = false
-        for(ownItem of target.inventory) {
-            if (ownItem.type == item.type && ownItem.qty >= item.qty) {
-                found = true
-            }
+        if (countInInventory(target, item.name) < item.qty) {
+            return false
         }
-        if(!found) return false
     }
 
     return true
 }
 
 function removeFromInventory(target, items) {
-    if(! items) {
+    if(!items) {
         return
     }
     for(item of items) {
         for(let i = 0; i < target.inventory.length; i++) {
             let ownItem = target.inventory[i]
-            if (ownItem.type == item.type) { 
+            if (ownItem.name == item.name) { 
                 if (ownItem.qty > item.qty) {
                     ownItem.qty = ownItem.qty - item.qty
                 } else {
@@ -390,7 +429,7 @@ function removeFromInventory(target, items) {
 
 function putToInventory(friend, item) {
     for (ownItem of friend.inventory) {
-        if (ownItem.type == item.type) {
+        if (ownItem.name == item.name) {
             ownItem.qty = ownItem.qty + item.qty
             return
         }
@@ -485,7 +524,7 @@ function friendDie(friend, reason) {
 function calculateStats() {
     for(friend of friends) {
 
-        friend.satiety -= 0.1
+        friend.satiety -= 0.01
         friend.freshness -= 0.05
 
         if (friend.satiety < 0) {
@@ -505,11 +544,40 @@ function calculateTerrainGrid() {
     return grid
 }
 
+function calculateHaulTasks() {
+
+    for(let x = 0; x < droppedItems.length; x++) {
+        for(let y = 0; y < droppedItems[x].length; y++) {
+            let current = droppedItems[x][y]
+            let storage = staticObjects.find((obj) => {
+                return obj?.feature?.storage && obj.x == x && obj.y == y
+            })
+            if(current && current.length > 0) {
+                for (let i = 0; i < current.length; i++) {
+                    let item = current[i]
+                    let qty = (item.qty ?? 0) - (item.reserved ?? 0)
+                    if ((qty > 0) && (!storage || !storage.feature.storage.types.includes(collections.items[item.name].type))) {
+                        globalTasksQueue.push({
+                            type: "store",
+                            args: {
+                                x: x,
+                                y: y,
+                                name: item.name
+                            }
+                        }, 2, "store_" + item.name + "_" + x + "_" + y)
+                    }
+                }
+            }
+        }
+    }
+}
+
 function calculate() {
 
     calculateTime()
     calculateStats()
     calculateMessages()
+    calculateHaulTasks()
 
     staticObjects.filter((obj) => obj && obj.feature && obj.feature['plant']).forEach((plant) => {
         let plantFeature = plant.feature.plant
@@ -609,13 +677,13 @@ function calculate() {
                 let found = false
                 if(items) {
                     for(let i = 0; i < items.length; i++) {
-                        if (items[i].type == task.args.type) {
+                        if (items[i].name == task.args.name) {
                             if (items[i].qty > task.args.qty) {
                                 items[i].qty = items[i].qty - task.args.qty
-                                putToInventory(friend, {type: task.args.type, qty: task.args.qty})
+                                putToInventory(friend, {name: task.args.name, qty: task.args.qty})
                             } else if (items[i].qty == task.args.qty) {
                                 items.splice(i, 1)
-                                putToInventory(friend, {type: task.args.type, qty: task.args.qty})
+                                putToInventory(friend, {name: task.args.name, qty: task.args.qty})
                             } else {
                                 console.log("Not enought items")
                                 friend.plan = []
@@ -632,6 +700,32 @@ function calculate() {
                     console.log("Item not found")
                     friend.plan = []
                 }
+
+            }
+            if ( task.type == 'drop') {
+                let { name, qty } = task.args
+                let ownQty = countInInventory(friend, name)
+                let items = droppedItems[friend.x][friend.y]
+                let itemExists = false
+                if(items) {
+                    for(let i = 0; i < items.length; i++) {
+                        if (items[i].name == task.args.name) {
+                            items[i].qty = items[i].qty + ownQty
+                            itemExists = true
+                        }
+                    }
+                    if(!itemExists) {
+                        items.push({ name, qty: ownQty })
+                    }
+                } else {
+                    droppedItems[friend.x][friend.y] = [{name, qty: ownQty}]
+                }
+                
+
+                removeFromInventory(friend, [{name, ownQty}])
+
+                friend.plan.shift()
+                console.log(friend.name + " completed task part " + task.type)
 
             }
         } else {
@@ -699,7 +793,7 @@ function calculate() {
                     plan.push({
                         type: "take",
                         args: {
-                            type: "sprout",
+                            name: "sprout",
                             qty: 1
                         }
                     })
@@ -737,7 +831,7 @@ function calculate() {
                         for(part of template.parts) {
                             let qtyToFind = part.qty
                             for (ownItem of friend.inventory) {
-                                if (ownItem.type == part.type) {
+                                if (ownItem.name == part.name) {
                                     if (ownItem.qty < part.qty) {
                                         qtyToFind -= ownItem.qty
                                     } else {
@@ -751,9 +845,9 @@ function calculate() {
                                 continue
                             }
     
-                            let locations = findItems(part.type, qtyToFind)
+                            let locations = findItems(part.name, qtyToFind)
                             if (locations == null) {
-                                console.log("[error] There are no enought " + part.type + ". Construction task is aborted")
+                                console.log("[error] There are no enought " + part.name + ". Construction task is aborted")
                                 itemsFound = false
                                 break
                             }
@@ -765,7 +859,7 @@ function calculate() {
                                 plan.push({
                                     type: "take",
                                     args: {
-                                        type: part.type,
+                                        name: part.name,
                                         qty: loc.qty
                                     }
                                 })
@@ -795,6 +889,57 @@ function calculate() {
                         friend.plan = plan
                     }
              
+                }
+                if ( task.type == 'store') {
+                    let {x, y, name} = task.args
+                    let itemSlot = (droppedItems[x][y] ?? []).find((el) => el.name == name)
+                    let qtyAll = itemSlot?.qty ?? 0
+                    let reserved = itemSlot?.reserved ?? 0
+                    let qty = qtyAll - reserved
+
+                    if(qty < 1) {
+                        friend.tasks[0].complete()
+                        friend.tasks.shift()
+                        console.log(friend.name + " completed " + task.type)
+                        continue
+                    }
+                    let grid = calculateTerrainGrid()
+
+                    let plan = []
+
+                    let itemLocation = {x: x, y: y}
+                    if (x != friend.x || y != friend.y) {
+                        let from = {x: friend.x, y: friend.y}
+                        plan.push(...aStar(grid, from, itemLocation, false).map(point => ({type: "move", args: {x: point.x, y: point.y}})))
+                    }
+
+                    plan.push({
+                        type: "take",
+                        args: {
+                            name: name,
+                            qty: qty
+                        }
+                    })
+
+                    let storages = staticObjects.filter((obj) => {
+                        return obj?.feature?.storage && obj.feature.storage.types.includes(collections.items[name].type)
+                    })
+
+                    let pathToStorage = shortestPath(grid, itemLocation, storages, false)
+
+                    plan.push(...pathToStorage.path.map(point => ({type: "move", args: {x: point.x, y: point.y}})))
+
+                    plan.push({
+                        type: "drop",
+                        args: {
+                            name: name
+                        }
+                    })
+
+                    if(!itemSlot.reserved) itemSlot.reserved = 0
+                    itemSlot.reserved += qty
+                    friend.plan = plan
+
                 }
             } else {
 
@@ -925,7 +1070,13 @@ let buildButtons = [
     { name: 'berry_bush', img: bush3, shortcut: "2"},
     { name: 'bed', img: bed, shortcut: "3"},
     { name: 'wall', img: wall, shortcut: "4"},
-    { name: 'torch', img: torch, shortcut: "5"}
+    { name: 'torch', img: torch, shortcut: "5"},
+    { name: 'storage', img: shelf, shortcut: "6"}
+]
+
+let itemTypes = [
+    { name: "food", text: "Еда" },
+    { name: "other", text: "Остальное" }
 ]
 
 let commands = [
@@ -1022,7 +1173,8 @@ let widgetsTree = function () { return {
                                 tabs: [
                                     ...widgets.if(selectedObject?.feature?.friend, () => ([{ name: "status", text: 'Статус' },
                                         { name: "inventory", text: "Инвентарь"}])),
-                                    ...widgets.if(selectedObject?.feature?.friend, () => ([{ name: "skills", text: "Навыки", }]))
+                                    ...widgets.if(selectedObject?.feature?.friend, () => ([{ name: "skills", text: "Навыки", }])),
+                                    ...widgets.if(selectedObject?.feature?.storage, () => ([{ name: "storage", text: "Склад", }]))
                                 ],
                                 children: [
                                     ...widgets.if(selectedObject?.feature?.friend, () => ([{
@@ -1047,7 +1199,7 @@ let widgetsTree = function () { return {
                                             children: widgets.for(selectedObject.inventory ?? [], () => true, (item) => ({
                                                 handler: widgetsLibrary.text,
                                                 args: {
-                                                    text: item.type + " " + item.qty,
+                                                    text: item.name + " " + item.qty,
                                                     padding: 5
                                                 }
                                             }))
@@ -1072,6 +1224,29 @@ let widgetsTree = function () { return {
                                                     }
                                                 }
                                             ]
+                                        }
+                                    }])),
+
+                                    ...widgets.if(selectedObject?.feature?.storage, () => ([{
+                                        handler: widgetsLibrary.container,
+                                        args: {
+                                            backgroundColor: "green", padding: 5,
+                                            children: widgets.for(itemTypes, () => true, (itemType) => ({
+                                                handler: widgetsLibrary.checkbox,
+                                                args: {
+                                                    text: itemType.text,
+                                                    padding: 5,
+                                                    selected: selectedObject.feature.storage.types.includes(itemType.name),
+                                                    action: (selected) => {
+                                                        if (selected) {
+                                                            selectedObject.feature.storage.types.push(itemType.name)
+                                                        } else {
+                                                            selectedObject.feature.storage.types = 
+                                                                selectedObject.feature.storage.types.filter((el) => el != itemType.name)
+                                                        }
+                                                    }
+                                                }
+                                            }))
                                         }
                                     }])),
                                 ]
@@ -1117,6 +1292,22 @@ let widgetsTree = function () { return {
     
 }}
 
+function renderObject(obj) {
+    if (obj == selectedObject) {
+        ctx.strokeStyle = 'green';
+        ctx.lineWidth = 2
+        ctx.setLineDash([6, 2])
+        ctx.strokeRect(obj.x * TILE_SIZE, obj.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    }
+
+    if(obj.img) {
+        ctx.drawImage(obj.img, obj.x * TILE_SIZE, obj.y * TILE_SIZE - ((obj.height - 1) * TILE_SIZE), TILE_SIZE, obj.height * TILE_SIZE)
+    } else {
+        ctx.fillStyle = obj.color;
+        ctx.fillRect(obj.x * TILE_SIZE, obj.y * TILE_SIZE, obj.width * TILE_SIZE, obj.height * TILE_SIZE);
+    }
+}
+
 
 function render() {
     ctx.fillStyle = "white";
@@ -1132,7 +1323,7 @@ function render() {
         }
     }
 
-    
+    staticObjects.filter((obj) => obj.zIndex == 0).forEach(renderObject)
 
     for(let x = 0; x < droppedItems.length; x++) {
         for(let y = 0; y < droppedItems[x].length; y++) {
@@ -1141,41 +1332,35 @@ function render() {
                 for (let i = 0; i < current.length; i++) {
                     let item = current[i]
 
-                    let itemTemplate = collections.items[item.type]
+                    let itemTemplate = collections.items[item.name]
+
+                    let itemX = x * TILE_SIZE + i * (TILE_SIZE / 2)
+                    let itemY = y * TILE_SIZE
+                    if (i > 1) {
+                        // second row
+                        itemX -= TILE_SIZE
+                        itemY += TILE_SIZE / 2
+                    }
 
                     if(itemTemplate.img) {
-                        ctx.drawImage(itemTemplate.img, x * TILE_SIZE + i * (TILE_SIZE / 2), y * TILE_SIZE, TILE_SIZE / 2, TILE_SIZE / 2)
+                        ctx.drawImage(itemTemplate.img, itemX, itemY, TILE_SIZE / 2, TILE_SIZE / 2)
                     } else {
                         ctx.fillStyle = itemTemplate.color;
-                        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE / 2, TILE_SIZE / 2);
+                        ctx.fillRect(itemX, itemY, TILE_SIZE / 2, TILE_SIZE / 2);
                     }
 
                     ctx.fillStyle = "black";
                     ctx.setLineDash([])
                     ctx.font="bold 14px Arial";
-                    ctx.fillText(item.qty , x * TILE_SIZE + i * (TILE_SIZE / 2), y * TILE_SIZE)
+                    ctx.fillText(item.qty , itemX, itemY)
 
                 }
             }
         }
     }
 
-    for (obj of objectsToRender()) {
-
-        if (obj == selectedObject) {
-            ctx.strokeStyle = 'green';
-            ctx.lineWidth = 2
-            ctx.setLineDash([6, 2])
-            ctx.strokeRect(obj.x * TILE_SIZE, obj.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        }
-
-        if(obj.img) {
-            ctx.drawImage(obj.img, obj.x * TILE_SIZE, obj.y * TILE_SIZE - ((obj.height - 1) * TILE_SIZE), TILE_SIZE, obj.height * TILE_SIZE)
-        } else {
-            ctx.fillStyle = obj.color;
-            ctx.fillRect(obj.x * TILE_SIZE, obj.y * TILE_SIZE, obj.width * TILE_SIZE, obj.height * TILE_SIZE);
-        }
-    }
+    staticObjects.filter((obj) => obj.zIndex == 1).forEach(renderObject)
+    friends.forEach(renderObject)
 
     renderDark()
 
@@ -1194,5 +1379,14 @@ function render() {
     }
 
 }
+
+// globalTasksQueue.push({
+//     type: "store",
+//     args: {
+//         x: 1,
+//         y: 1,
+//         type: "wood"
+//     }
+// }, 5)
 
 ticker()
