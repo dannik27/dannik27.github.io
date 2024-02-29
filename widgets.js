@@ -549,9 +549,13 @@ let widgetsLibrary = {
             if (args.shortcut) {
                 ctx.textAlign="center"; 
                 ctx.textBaseline="middle"
+                ctx.strokeStyle = "black"
                 ctx.fillStyle = "red";
+                
+                ctx.lineWidth = 1
                 ctx.font="bold 14px Arial";
                 ctx.fillText(args.shortcut, x + 8, y + 8);
+                ctx.strokeText(args.shortcut, x + 8, y + 8);
             }
             
         },

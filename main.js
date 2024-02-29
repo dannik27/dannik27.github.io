@@ -152,7 +152,7 @@ function onClick(x, y) {
                 }
             })
         }
-        if (['bed', 'berry_bush', 'wall', "torch", "storage"].includes(objectToBuild)) {
+        if (['growingSpot', 'bed', 'berry_bush', 'wall', "torch", "storage"].includes(objectToBuild)) {
             globalTasksQueue.push({
                 type: "construct",
                 args: {
@@ -292,6 +292,7 @@ function recalculateOrientedImg(x, y, template) {
 function createObject(x, y, template) {
     let newObject = {
         name: template.name,
+        text: template.text,
         img: template.img,
         inventory: template.inventory ? JSON.parse(JSON.stringify(template.inventory)): [],
         zIndex: template.zIndex ?? 1,
@@ -1071,7 +1072,13 @@ let buildButtons = [
     { name: 'bed', img: bed, shortcut: "3"},
     { name: 'wall', img: wall, shortcut: "4"},
     { name: 'torch', img: torch, shortcut: "5"},
-    { name: 'storage', img: shelf, shortcut: "6"}
+    { name: 'storage', img: shelf, shortcut: "6"},
+    { name: 'growingSpot', img: growingSpot, shortcut: "7"}
+]
+
+let growingOptions = [
+    { name: "carrot", shortcut: "c", img: carrot },
+    { name: "none", shortcut: "n", img: redCross }
 ]
 
 let itemTypes = [
@@ -1149,7 +1156,7 @@ let widgetsTree = function () { return {
                                                 {
                                                     handler: widgetsLibrary.text,
                                                     args: {
-                                                        text: selectedObject?.name + " (" + selectedObject?.health + ")",
+                                                        text: selectedObject?.text + " (" + selectedObject?.health + ")",
                                                         padding: 5
                                                     }
                                                 },
@@ -1174,7 +1181,8 @@ let widgetsTree = function () { return {
                                     ...widgets.if(selectedObject?.feature?.friend, () => ([{ name: "status", text: 'Статус' },
                                         { name: "inventory", text: "Инвентарь"}])),
                                     ...widgets.if(selectedObject?.feature?.friend, () => ([{ name: "skills", text: "Навыки", }])),
-                                    ...widgets.if(selectedObject?.feature?.storage, () => ([{ name: "storage", text: "Склад", }]))
+                                    ...widgets.if(selectedObject?.feature?.storage, () => ([{ name: "storage", text: "Склад", }])),
+                                    ...widgets.if(selectedObject?.feature?.growingSpot, () => ([{ name: "growingSpot", text: "Грядка", }]))
                                 ],
                                 children: [
                                     ...widgets.if(selectedObject?.feature?.friend, () => ([{
@@ -1249,6 +1257,24 @@ let widgetsTree = function () { return {
                                             }))
                                         }
                                     }])),
+
+                                    ...widgets.if(selectedObject?.feature?.growingSpot, () => ([{
+                                        handler: widgetsLibrary.container,
+                                        args: {
+                                            backgroundColor: "green", padding: 5, gap: 5, layout: "horizontal",
+                                            children: widgets.for(growingOptions, () => true, (option) => ({
+                                                handler: widgetsLibrary.button,
+                                                args: {
+                                                    width: 40, height: 40,
+                                                    img: option.img,
+                                                    shortcut: option.shortcut,
+                                                    selected: selectedObject.feature.growingSpot.target == option.name,
+                                                    action: () => selectedObject.feature.growingSpot.target = option.name
+                                                }
+                                            }))
+                                        }
+                                    }])),
+
                                 ]
                             }
                         },

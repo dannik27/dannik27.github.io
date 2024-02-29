@@ -325,7 +325,7 @@ function buildPath(rays, center, radius) {
     let path = new Path2D()
 
     if (rays.length == 0) {
-        path.arc(center.x, center.y, radius, 0, 2 * Math.PI, false)
+        path.arc(center.x, center.y, radius, 0, 2 * Math.PI, true)
         return path
     }
 

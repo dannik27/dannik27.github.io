@@ -50,6 +50,10 @@ const info = new Image(); info.src = "img/info.png"
 
 const shelf = new Image(); shelf.src = "img/construction/shelf.png"
 
+const growingSpot = new Image(); growingSpot.src = "img/growing/growing_spot.png"
+const carrot = new Image(); carrot.src = "img/growing/carrot.png"
+const redCross = new Image(); redCross.src = "img/growing/none.png"
+
 let collections = {
 
     items: {
@@ -65,11 +69,28 @@ let collections = {
         berry: {
             img: berry,
             type: "food"
+        },
+        carrot: {
+            img: carrot,
+            type: "food"
         }
 
     },
 
     objects: {
+
+        growingSpot: {
+            text: "Грядка",
+            name: "growingSpot",
+            img: growingSpot,
+            parts: [],
+            feature: {
+                growingSpot: {
+                    target: "none"
+                }
+            }
+        },
+
         torch: {
             text: "Факел",
             name: 'torch',
